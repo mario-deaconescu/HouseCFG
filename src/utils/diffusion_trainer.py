@@ -25,11 +25,13 @@ class DiffusionTrainer(Generic[T, T_BATCH], Trainer[T, T_BATCH]):
                  epochs: int, batch_size: int, lr: float,
                  device: Optional[torch.device] = None,
                  collate_fn: Optional[Callable[[list[T]], T_BATCH]] = None,
+                 get_batch_size: Optional[Callable[[T_BATCH], int]] = None,
                  checkpoint_path: Optional[str] = None, model_dict: Optional[dict] = None,
                  log_interval: Optional[int] = None,
                  num_workers: int = 8, scheduler: Optional[LRScheduler] = None, optimizer: Optional[Optimizer] = None):
         super().__init__(model, dataset, epochs, batch_size, lr, device, collate_fn, checkpoint_path, model_dict,
                          log_interval, num_workers, scheduler, optimizer)
+        self.get_batch_size = get_batch_size
         self.diffusion = diffusion
         self.timestep_sampler = timestep_sampler
 
@@ -39,7 +41,11 @@ class DiffusionTrainer(Generic[T, T_BATCH], Trainer[T, T_BATCH]):
 
     @final
     def step(self, batch: T_BATCH) -> torch.Tensor:
-        t, sampler_weights = self.timestep_sampler.sample(self.batch_size, device=self.device)
+        if self.get_batch_size is not None:
+            batch_size = self.get_batch_size(batch)
+        else:
+            batch_size = batch.shape[0].shape[0]
+        t, sampler_weights = self.timestep_sampler.sample(batch_size, device=self.device)
         diffusion_step_output = self.diffusion_step(batch)
         x_noisy = diffusion_step_output['x']
         model_kwargs = diffusion_step_output['model_kwargs']

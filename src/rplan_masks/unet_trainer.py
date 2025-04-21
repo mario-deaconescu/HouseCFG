@@ -34,7 +34,7 @@ class UnetTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
         if model is None:
-            model = CFGUnet(dim=64, channels=4, out_dim=3, cond_drop_prob=0.2).to(device)
+            model = CFGUnet(dim=mask_size, channels=4, out_dim=3, cond_drop_prob=0.2).to(device)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,
