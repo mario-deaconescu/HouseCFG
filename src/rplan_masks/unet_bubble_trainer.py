@@ -54,6 +54,7 @@ class UnetBubbleTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         if checkpoint_path is None:
             checkpoint_path = 'checkpoints_unet_bubbles'
         super().__init__(model, dataset, diffusion, timestep_sampler, epochs, batch_size, lr, device, collate_fn,
+                         lambda batch: batch[0].shape[0],
                          checkpoint_path, model_dict,
                          log_interval, num_workers, scheduler, optimizer)
         if self.scheduler is None:
