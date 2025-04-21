@@ -31,7 +31,7 @@ class Trainer(ABC, Generic[T, T_BATCH]):
                  device: Optional[torch.device] = None,
                  collate_fn: Optional[Callable[[list[T]], T_BATCH]] = None,
                  checkpoint_path: Optional[str] = None, model_dict: Optional[dict] = None,
-                 log_interval: Optional[int] = None,
+                 save_interval: Optional[int] = None,
                  num_workers: int = 8, scheduler: Optional[LRScheduler] = None, optimizer: Optional[Optimizer] = None):
         if device is None:
             self.device = torch.device(
@@ -48,7 +48,7 @@ class Trainer(ABC, Generic[T, T_BATCH]):
         self.model_dict = model_dict
         self.num_workers = num_workers
         self.scheduler = scheduler
-        self.log_interval = log_interval
+        self.save_interval = save_interval
         if optimizer is None:
             self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
         else:
@@ -84,7 +84,7 @@ class Trainer(ABC, Generic[T, T_BATCH]):
                 print(
                     f'Epoch {epoch}, Batch {batch_idx}, Loss {loss.item()}, Load time {load_time}, Train time {train_time}')
                 start_time = time.time()
-                if self.save_interval is not None and batch_idx % self.log_interval == 0 and (
+                if self.save_interval is not None and batch_idx % self.save_interval == 0 and (
                         batch_idx > 0 or epoch > 0):
                     os.makedirs(self.checkpoints_path, exist_ok=True)
                     torch.save(self.model.state_dict(),

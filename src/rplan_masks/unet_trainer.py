@@ -28,7 +28,7 @@ class UnetTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
                  device: Optional[torch.device] = None,
                  collate_fn: Optional[Callable[[list[ImagePlan]], ImagePlanCollated]] = None,
                  checkpoint_path: Optional[str] = None, model_dict: Optional[dict] = None,
-                 log_interval: Optional[int] = 500,
+                 save_interval: Optional[int] = 500,
                  num_workers: int = 8, scheduler: Optional[LRScheduler] = None, optimizer: Optional[Optimizer] = None):
         if device is None:
             device = torch.device(
@@ -53,8 +53,9 @@ class UnetTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         if checkpoint_path is None:
             checkpoint_path = 'checkpoints_unet'
         super().__init__(model, dataset, diffusion, timestep_sampler, epochs, batch_size, lr, device, collate_fn,
+                         lambda batch: batch[0].shape[0],
                          checkpoint_path, model_dict,
-                         log_interval, num_workers, scheduler, optimizer)
+                         save_interval, num_workers, scheduler, optimizer)
 
     def diffusion_step(self, batch: ImagePlanCollated) -> DiffusionStepOutput:
         images, walls, doors, room_types, bubbles, masks = batch
