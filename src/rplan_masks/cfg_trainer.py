@@ -19,7 +19,7 @@ def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, 
     return mse
 
 
-class UnetTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
+class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
 
     def __init__(self, epochs: int, batch_size: int, lr: float, mask_size: int = 64,
                  model: Optional[torch.nn.Module] = None, dataset: Optional[Dataset] = None,

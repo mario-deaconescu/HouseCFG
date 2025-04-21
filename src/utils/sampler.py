@@ -23,6 +23,7 @@ class Sampler:
                                           device=self.device)
         self.diffusion = diffusion
 
+    @torch.no_grad()
     def sample(self, num_samples: int, model_kwargs: Optional[dict] = None) -> torch.Tensor:
         if model_kwargs is None:
             model_kwargs = {}

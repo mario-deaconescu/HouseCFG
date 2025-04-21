@@ -20,7 +20,7 @@ def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, 
     return mse
 
 
-class UnetBubbleTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
+class CfgBubbleTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
 
     def __init__(self, batch_size: int, lr: float, mask_size: int = 64, epochs: int = 30,
                  model: Optional[torch.nn.Module] = None, dataset: Optional[Dataset] = None,
@@ -35,7 +35,7 @@ class UnetBubbleTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
         if model is None:
-            model = GithubUnet(dim=mask_size, channels=6, out_dim=3, flash_attn=True, dropout=0.1).to(device)
+            model = CFGUnet(dim=mask_size, channels=6, out_dim=3, cond_drop_prob=0.15).to(device)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,

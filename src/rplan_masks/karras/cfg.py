@@ -277,6 +277,7 @@ class CFGUnet(nn.Module):
     def __init__(
         self,
         dim,
+        use_bubbles: bool = False,
         cond_drop_prob = 0.5,
         init_dim = None,
         out_dim = None,
@@ -298,6 +299,7 @@ class CFGUnet(nn.Module):
         # determine dimensions
 
         self.channels = channels
+        self.use_bubbles = use_bubbles
         input_channels = channels
 
         init_dim = default(init_dim, dim)
@@ -339,7 +341,8 @@ class CFGUnet(nn.Module):
             nn.Linear(classes_dim, classes_dim)
         )
 
-        self.null_bubble_diagram = nn.Parameter(torch.randn(1, 2, dim, dim))
+        if self.use_bubbles:
+            self.null_bubble_diagram = nn.Parameter(torch.randn(1, 2, dim, dim))
 
         # layers
 
@@ -405,11 +408,10 @@ class CFGUnet(nn.Module):
             classes_emb = self.classes_emb(room_types)
 
         bubbles = kwargs.get('bubbles')
-        use_bubbles = kwargs.get('use_bubbles', False)
-        if use_bubbles and bubbles is None:
+        if self.use_bubbles and bubbles is None:
             bubbles = self.null_bubble_diagram.repeat(x.shape[0], 1, 1, 1)
 
-        if use_bubbles and cond_drop_prob > 0:
+        if self.use_bubbles and cond_drop_prob > 0:
             drops = torch.rand(bubbles.shape[0], device=x.device)
             drops = (drops < cond_drop_prob)
             null_tokens = self.null_bubble_diagram.repeat(bubbles.shape[0], 1, 1, 1)
@@ -430,7 +432,7 @@ class CFGUnet(nn.Module):
         # unet
 
         x = torch.cat((x, masks), dim = 1)
-        if use_bubbles:
+        if self.use_bubbles:
             x = torch.cat((x, bubbles), dim = 1)
 
         x = self.init_conv(x)

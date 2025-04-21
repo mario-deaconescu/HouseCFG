@@ -5,6 +5,7 @@ from random import random
 from functools import partial
 from collections import namedtuple
 from multiprocessing import cpu_count
+from typing import Optional
 
 import numpy as np
 import torch
@@ -394,8 +395,10 @@ class GithubUnet(Module):
     def downsample_factor(self):
         return 2 ** (len(self.downs) - 1)
 
-    def forward(self, x, time, x_self_cond = None, **kwargs):
+    def forward(self, x, time, x_self_cond = None, cond_drop_prob:Optional[int]=None, **kwargs):
         assert all([divisible_by(d, self.downsample_factor) for d in x.shape[-2:]]), f'your input dimensions {x.shape[-2:]} need to be divisible by {self.downsample_factor}, given the unet'
+        if cond_drop_prob is None:
+            cond_drop_prob = self.condition_drop_prob
 
         if self.self_condition:
             x_self_cond = default(x_self_cond, lambda: torch.zeros_like(x))
@@ -404,11 +407,11 @@ class GithubUnet(Module):
         # src_key_padding_mask = kwargs['src_key_padding_mask']
 
         bubbles = kwargs.get('bubbles')
-        if bubbles is not None:
+        if bubbles is None:
             # bubbles = torch.cat((bubbles, bubbles), dim = 1)
-            bubbles = self.null_bubble_diagram.repeat(bubbles.shape[0], 1, 1, 1)
+            bubbles = self.null_bubble_diagram.repeat(x.shape[0], 1, 1, 1)
 
-        if self.condition_drop_prob > 0:
+        if cond_drop_prob > 0:
             drops = torch.rand(bubbles.shape[0], device = x.device)
             drops = (drops < self.condition_drop_prob)
             null_tokens = self.null_bubble_diagram.repeat(bubbles.shape[0], 1, 1, 1)
