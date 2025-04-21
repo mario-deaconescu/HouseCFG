@@ -339,6 +339,8 @@ class CFGUnet(nn.Module):
             nn.Linear(classes_dim, classes_dim)
         )
 
+        self.null_bubble_diagram = nn.Parameter(torch.randn(1, 2, dim, dim))
+
         # layers
 
         self.downs = nn.ModuleList([])
@@ -402,6 +404,17 @@ class CFGUnet(nn.Module):
             room_types = torch.cat((room_types, room_count.unsqueeze(1)), dim = 1)
             classes_emb = self.classes_emb(room_types)
 
+        bubbles = kwargs.get('bubbles')
+        use_bubbles = kwargs.get('use_bubbles', False)
+        if use_bubbles and bubbles is None:
+            bubbles = self.null_bubble_diagram.repeat(x.shape[0], 1, 1, 1)
+
+        if use_bubbles and cond_drop_prob > 0:
+            drops = torch.rand(bubbles.shape[0], device=x.device)
+            drops = (drops < cond_drop_prob)
+            null_tokens = self.null_bubble_diagram.repeat(bubbles.shape[0], 1, 1, 1)
+            bubbles = torch.where(drops.unsqueeze(1).unsqueeze(1).unsqueeze(1), null_tokens, bubbles)
+
         if cond_drop_prob > 0:
             keep_mask = prob_mask_like((batch,), 1 - cond_drop_prob, device = device)
             null_classes_emb = repeat(self.null_classes_emb, 'd -> b d', b = batch)
@@ -417,6 +430,8 @@ class CFGUnet(nn.Module):
         # unet
 
         x = torch.cat((x, masks), dim = 1)
+        if use_bubbles:
+            x = torch.cat((x, bubbles), dim = 1)
 
         x = self.init_conv(x)
         r = x.clone()
