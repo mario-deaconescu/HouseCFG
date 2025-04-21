@@ -35,7 +35,7 @@ class CfgBubbleTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
         if model is None:
-            model = CFGUnet(dim=mask_size, channels=6, out_dim=3, cond_drop_prob=0.15).to(device)
+            model = CFGUnet(dim=mask_size, dim_mults=(1, 2, 4, 8, 16), channels=5, out_dim=3, cond_drop_prob=0.15).to(device)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,
@@ -66,6 +66,7 @@ class CfgBubbleTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             self.device), masks.to(self.device)
         if bubbles is not None:
             bubbles = bubbles.to(self.device)
+            bubbles = bubbles[:, 0, :, :].unsqueeze(1)
         if room_types is not None:
             room_types = room_types.to(self.device)
         masks = masks.float()

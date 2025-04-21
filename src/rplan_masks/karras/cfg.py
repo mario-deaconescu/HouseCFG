@@ -342,7 +342,7 @@ class CFGUnet(nn.Module):
         )
 
         if self.use_bubbles:
-            self.null_bubble_diagram = nn.Parameter(torch.randn(1, 2, dim, dim))
+            self.null_bubble_diagram = nn.Parameter(torch.randn(1, 1, dim, dim))
 
         # layers
 
