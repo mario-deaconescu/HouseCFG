@@ -14,16 +14,15 @@ from src.rplan_masks.karras.denoise import GithubUnet
 
 @torch.no_grad()
 def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan', mask_size: int = 64,
-                room_types: Optional[np.ndarray] = None, condition_scale: float = 1.0,
-                rescaled_phi: float = 0.0, ddim: bool = False,
+                masks: Optional[torch.Tensor] = None, bubbles: Optional[torch.Tensor] = None,
+                ddim: bool = False,
                 device: torch.device = torch.device('cpu')):
-    dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
-                                random_scale=0.6)
-    random_samples = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
-    input_room_types = room_types
-    if room_types is not None:
-        for i in range(len(random_samples)):
-            random_samples[i].room_types = room_types[i]
+    if masks is None or bubbles is None:
+        input_masks = masks
+        input_bubbles = bubbles
+        dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
+                                    random_scale=0.6)
+        random_samples = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
     # random_sample = dataset[0]
     # random_sample = from_export('notebooks/data/export')
     # with open('data/rplan/1.json') as f:
@@ -31,30 +30,35 @@ def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_
     #
     # plan = Plan.from_raw(raw_plan)
     # random_sample = TorchTransformerPlan.from_plan(plan, 32, 100, front_door_at_end=True)
-    random_sample_batched = ImagePlan.collate(random_samples)
+        random_sample_batched = ImagePlan.collate(random_samples)
 
-    images, walls, doors, room_types, masks = random_sample_batched
-    images, walls, doors, room_types, masks = images.to(device), walls.to(device), doors.to(device), room_types.to(
-        device), masks.to(device)
+        images, walls, doors, room_types, bubbles, masks = random_sample_batched
+        if input_bubbles is None:
+            assert bubbles is not None
+            bubbles = bubbles.to(device)[:, 0, :, :].unsqueeze(1)
+        else:
+            bubbles = input_bubbles.to(device)
+        images, walls, doors, masks = images.to(device), walls.to(device), doors.to(device), masks.to(device)
+        if input_masks is not None:
+            masks = input_masks.to(device)
     # room_types = room_types.float()
     # real_room_types = [RoomType.from_one_hot(room_type) for room_type in room_types[0]]
-    masks = masks.float()
+        masks = masks.float()
     # masks = torch.ones_like(masks, device=device)
-    x = torch.cat([images, walls, doors], dim=1)
+    # x = torch.cat([images, walls, doors], dim=1)
 
+    print(bubbles.shape)
     model_kwargs = {
         'masks': masks,
-        'room_types': room_types if input_room_types is not None else None,
-        'cond_scale': condition_scale,
-        'rescaled_phi': rescaled_phi,
+        'bubbles': bubbles,
         # 'src_key_padding_mask': src_key_padding_mask,
         # 'nodes_to_graph': nodes_to_graph,
     }
 
     if ddim:
-        samples, _ = diffusion.ddim_sample_loop(model, x.shape, model_kwargs=model_kwargs)
+        samples, _ = diffusion.ddim_sample_loop(model, (num_samples, 3, mask_size, mask_size), model_kwargs=model_kwargs)
     else:
-        samples, _ = diffusion.p_sample_loop(model, x.shape, model_kwargs=model_kwargs)
+        samples, _ = diffusion.p_sample_loop(model, (num_samples, 3, mask_size, mask_size), model_kwargs=model_kwargs)
     samples = samples.cpu().numpy()
     return samples
 

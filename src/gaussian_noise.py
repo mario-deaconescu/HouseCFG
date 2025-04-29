@@ -355,7 +355,7 @@ class GaussianDiffusion:
         device=None,
         progress=False,
         eta=0.0,
-    ):
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Generate samples from the model using DDIM.
 

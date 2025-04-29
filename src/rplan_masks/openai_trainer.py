@@ -49,11 +49,13 @@ class OpenaiTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
                  diffusion: Optional[GaussianDiffusion] = None,
                  timestep_sampler: Optional[ScheduleSampler] = None,
                  fp_16: bool = False,
+                 custom_loss: Optional[Callable[[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]] = None,
                  device: Optional[torch.device] = None,
                  collate_fn: Optional[Callable[[list[ImagePlan]], ImagePlanCollated]] = None,
                  checkpoint_path: Optional[str] = None, model_dict: Optional[dict] = None,
                  save_interval: Optional[int] = 500,
                  num_workers: int = 8, scheduler: Optional[LRScheduler] = None, optimizer: Optional[Optimizer] = None):
+        self.custom_loss = custom_loss
         if device is None:
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
@@ -95,7 +97,7 @@ class OpenaiTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         masks = masks.float()
         x = torch.cat([images, walls, doors], dim=1)
         model_kwargs = {
-            'custom_eps_loss': custom_eps_loss,
+            'custom_eps_loss': self.custom_loss,
             'bubbles': bubbles,
             'masks': masks,
         }
