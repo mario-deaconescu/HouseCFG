@@ -97,10 +97,11 @@ class OpenaiTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         masks = masks.float()
         x = torch.cat([images, walls, doors], dim=1)
         model_kwargs = {
-            'custom_eps_loss': self.custom_loss,
             'bubbles': bubbles,
             'masks': masks,
         }
+        if self.custom_loss is not None:
+            model_kwargs['custom_eps_loss'] = self.custom_loss
 
         return {
             'x': x,
