@@ -8,6 +8,8 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .fp16_util import convert_module_to_f16, convert_module_to_f32
+
 from .nn import (
     checkpoint,
     conv_nd,
@@ -614,6 +616,22 @@ class UNetModel(nn.Module):
             nn.SiLU(),
             zero_module(conv_nd(dims, input_ch, out_channels, 3, padding=1)),
         )
+
+    def convert_to_fp16(self):
+        """
+        Convert the torso of the model to float16.
+        """
+        self.input_blocks.apply(convert_module_to_f16)
+        self.middle_block.apply(convert_module_to_f16)
+        self.output_blocks.apply(convert_module_to_f16)
+
+    def convert_to_fp32(self):
+        """
+        Convert the torso of the model to float32.
+        """
+        self.input_blocks.apply(convert_module_to_f32)
+        self.middle_block.apply(convert_module_to_f32)
+        self.output_blocks.apply(convert_module_to_f32)
 
     def forward(self, x, timesteps, y=None, **kwargs):
         """
