@@ -48,6 +48,7 @@ class OpenaiTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
                  model: Optional[torch.nn.Module] = None, dataset: Optional[Dataset] = None,
                  diffusion: Optional[GaussianDiffusion] = None,
                  timestep_sampler: Optional[ScheduleSampler] = None,
+                 fp_16: bool = False,
                  device: Optional[torch.device] = None,
                  collate_fn: Optional[Callable[[list[ImagePlan]], ImagePlanCollated]] = None,
                  checkpoint_path: Optional[str] = None, model_dict: Optional[dict] = None,
@@ -59,7 +60,7 @@ class OpenaiTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         if model is None:
             model = UNetModel(image_size=mask_size, in_channels=5, model_channels=192, out_channels=3, num_res_blocks=3,
                               attention_resolutions=[32, 16, 8], num_head_channels=64, resblock_updown=True, use_scale_shift_norm=True,
-                              use_new_attention_order=True)
+                              use_new_attention_order=True, use_fp16=fp_16, dropout=0.1)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,
