@@ -2,3 +2,8 @@ data
 .cadence
 .idea
 checkpoints*/
+src/eval/house_diffusion/
+outputs/
+models/
+processed_rplan/
+ckpts/

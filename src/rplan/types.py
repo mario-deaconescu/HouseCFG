@@ -42,6 +42,22 @@ class RoomType(enum.Enum):
     UNKNOWN = 16
     INTERIOR_DOOR = 17
 
+    @staticmethod
+    def frequencies():
+        return {
+            RoomType.BEDROOM: 177097,
+            RoomType.BATHROOM: 92778,
+            RoomType.BALCONY: 82840,
+            RoomType.LIVING_ROOM: 77287,
+            RoomType.FRONT_DOOR: 76743,
+            RoomType.KITCHEN: 74393,
+            RoomType.STUDY_ROOM: 14175,
+            RoomType.STORAGE: 3158,
+            RoomType.DINING_ROOM: 1212,
+            RoomType.UNKNOWN: 981,
+            RoomType.ENTRANCE: 267
+        }
+
     def to_str(self) -> str:
         return self.name.lower().replace("_", " ")
 
@@ -94,7 +110,6 @@ class RoomType(enum.Enum):
     def from_one_hot(one_hot: torch.Tensor) -> RoomType:
         index = torch.argmax(one_hot)
         return list(RoomType)[index]
-
 
 
 class RawPlan:
@@ -888,7 +903,7 @@ class TorchTransformerPlan:
                                                                                src_key_padding_mask=src_key_padding_mask,
                                                                                connections=connections,
                                                                                room_graph=room_graph))
-    
+
     @staticmethod
     def uncollate(plans: TorchTransformerPlan) -> list[TorchTransformerPlan]:
         coordinates = plans.coordinates
@@ -908,10 +923,10 @@ class TorchTransformerPlan:
                                                                                 room_types=room_types[i],
                                                                                 corner_indices=corner_indices[i],
                                                                                 room_indices=room_indices[i],
-                                                                                src_key_padding_mask=src_key_padding_mask[i],
+                                                                                src_key_padding_mask=
+                                                                                src_key_padding_mask[i],
                                                                                 connections=connections[i]))
                 for i in range(len(coordinates))]
-        
 
     @staticmethod
     def from_plan(source: Plan, max_room_points: int, max_total_points: int, randomize_rooms: bool = False,
@@ -1281,13 +1296,15 @@ class MaskPlan:
         MAX_ROOMS = 10
 
         padding = [MAX_ROOMS - len(plan.room_masks) for plan in plans]
-        room_masks = [np.concatenate([plan.room_masks, np.zeros((padding[i], *plan.room_masks.shape[1:]))], axis=0) for i, plan in enumerate(plans)]
+        room_masks = [np.concatenate([plan.room_masks, np.zeros((padding[i], *plan.room_masks.shape[1:]))], axis=0) for
+                      i, plan in enumerate(plans)]
         room_masks = np.stack(room_masks, axis=0)
         room_masks = torch.tensor(room_masks, dtype=torch.float32)
-        room_types = [torch.cat([torch.stack([room_type.one_hot() for room_type in plan.room_types]), torch.zeros(padding[i], len(RoomType))], dim=0) for i, plan in enumerate(plans)]
+        room_types = [torch.cat([torch.stack([room_type.one_hot() for room_type in plan.room_types]),
+                                 torch.zeros(padding[i], len(RoomType))], dim=0) for i, plan in enumerate(plans)]
         room_types = torch.stack(room_types, dim=0)
         src_key_padding_mask = [np.concatenate([np.zeros(MAX_ROOMS - padding[i], dtype=bool),
-                                              np.ones(padding[i], dtype=bool)]) for i in range(len(plans))]
+                                                np.ones(padding[i], dtype=bool)]) for i in range(len(plans))]
         src_key_padding_mask = np.stack(src_key_padding_mask, axis=0)
         src_key_padding_mask = torch.tensor(src_key_padding_mask, dtype=torch.bool)
 
@@ -1332,7 +1349,10 @@ class MaskPlan:
 
         return Plan(rooms=[room for room in rooms if room.room_type != RoomType.INTERIOR_DOOR], edges=edges)
 
-ImagePlanCollated = tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], torch.Tensor]
+
+ImagePlanCollated = tuple[
+    torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], torch.Tensor]
+
 
 @dataclass
 class ImagePlan:
@@ -1367,7 +1387,8 @@ class ImagePlan:
                 if with_bubbles:
                     centroid = room.centroid() * scale
                     radius = room.area() ** 0.5 / 3 * scale
-                    bubbles = cv2.circle(bubbles, (int(centroid[0]), int(centroid[1])), int(radius), room_type_value, -1)
+                    bubbles = cv2.circle(bubbles, (int(centroid[0]), int(centroid[1])), int(radius), room_type_value,
+                                         -1)
 
         for room1_idx, room2_idx, door in plan.edges:
             if door is None:
@@ -1379,7 +1400,7 @@ class ImagePlan:
                 centroid1 = room1.centroid() * scale
                 centroid2 = room2.centroid() * scale
                 bubble_edges = cv2.line(bubble_edges, (int(centroid1[0]), int(centroid1[1])),
-                                         (int(centroid2[0]), int(centroid2[1])), 1, 1)
+                                        (int(centroid2[0]), int(centroid2[1])), 1, 1)
 
         if with_bubbles:
             bubbles = np.stack([bubbles, bubble_edges], axis=0)
@@ -1391,8 +1412,10 @@ class ImagePlan:
         images = torch.tensor(np.stack([plan.image for plan in plans], axis=0), dtype=torch.float32).unsqueeze(1)
         walls = torch.tensor(np.stack([plan.walls for plan in plans], axis=0), dtype=torch.float32).unsqueeze(1)
         doors = torch.tensor(np.stack([plan.door_image for plan in plans], axis=0), dtype=torch.float32).unsqueeze(1)
-        room_types = torch.tensor(np.stack([plan.room_types for plan in plans], axis=0), dtype=torch.float32) if plans[0].room_types is not None else None
-        bubbles = torch.tensor(np.stack([plan.bubbles for plan in plans], axis=0), dtype=torch.float32) if plans[0].bubbles is not None else None
+        room_types = torch.tensor(np.stack([plan.room_types for plan in plans], axis=0), dtype=torch.float32) if plans[
+                                                                                                                     0].room_types is not None else None
+        bubbles = torch.tensor(np.stack([plan.bubbles for plan in plans], axis=0), dtype=torch.float32) if plans[
+                                                                                                               0].bubbles is not None else None
         masks = images > -1
         return images, walls, doors, room_types, bubbles, masks
 

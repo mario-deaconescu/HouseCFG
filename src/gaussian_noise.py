@@ -361,6 +361,7 @@ class GaussianDiffusion:
 
         Same usage as p_sample_loop().
         """
+        model.eval()
         final = None
         for sample, _, additional_sample in tqdm(self.ddim_sample_loop_progressive(
             model,
@@ -373,6 +374,7 @@ class GaussianDiffusion:
             eta=eta,
         )):
             final = sample, additional_sample
+        model.train()
         return final
 
     def ddim_sample_loop_progressive(

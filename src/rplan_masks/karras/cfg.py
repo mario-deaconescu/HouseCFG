@@ -5,6 +5,7 @@ from random import random
 from functools import partial
 from collections import namedtuple
 from multiprocessing import cpu_count
+from typing import Optional
 
 import torch
 from torch import nn, einsum
@@ -277,7 +278,7 @@ class CFGUnet(nn.Module):
     def __init__(
         self,
         dim,
-        use_bubbles: bool = False,
+        bubble_dim: Optional[int] = None,
         cond_drop_prob = 0.5,
         init_dim = None,
         out_dim = None,
@@ -299,7 +300,8 @@ class CFGUnet(nn.Module):
         # determine dimensions
 
         self.channels = channels
-        self.use_bubbles = use_bubbles
+        self.bubble_dim = bubble_dim
+        self.use_bubbles = bubble_dim is not None
         input_channels = channels
 
         init_dim = default(init_dim, dim)
@@ -342,7 +344,7 @@ class CFGUnet(nn.Module):
         )
 
         if self.use_bubbles:
-            self.null_bubble_diagram = nn.Parameter(torch.randn(1, 1, dim, dim))
+            self.null_bubble_diagram = nn.Parameter(torch.randn(1, self.bubble_dim, dim, dim))
 
         # layers
 
