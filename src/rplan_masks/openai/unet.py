@@ -450,6 +450,8 @@ class UNetModel(nn.Module):
     ):
         super().__init__()
 
+        self.use_fp16 = use_fp16
+
         if num_heads_upsample == -1:
             num_heads_upsample = num_heads
 
@@ -647,6 +649,10 @@ class UNetModel(nn.Module):
         ), "must specify y if and only if the model is class-conditional"
 
         x = torch.cat([x, kwargs['masks'], kwargs['bubbles']], dim=1)
+
+        if self.use_fp16:
+            x = x.half()
+            timesteps = timesteps.half()
 
         hs = []
         emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
