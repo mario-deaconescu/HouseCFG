@@ -41,6 +41,8 @@ def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_
         images, walls, doors, masks = images.to(device), walls.to(device), doors.to(device), masks.to(device)
         if input_masks is not None:
             masks = input_masks.to(device)
+    else:
+        random_sample_batched = None
     # room_types = room_types.float()
     # real_room_types = [RoomType.from_one_hot(room_type) for room_type in room_types[0]]
         masks = masks.float()
@@ -60,7 +62,7 @@ def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_
     else:
         samples, _ = diffusion.p_sample_loop(model, (num_samples, 3, mask_size, mask_size), model_kwargs=model_kwargs)
     samples = samples.cpu().numpy()
-    return samples
+    return samples, random_sample_batched
 
 
 if __name__ == '__main__':

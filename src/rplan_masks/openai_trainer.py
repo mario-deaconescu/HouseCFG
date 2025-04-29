@@ -60,9 +60,9 @@ class OpenaiTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
         if model is None:
-            model = UNetModel(image_size=mask_size, in_channels=5, model_channels=192, out_channels=3, num_res_blocks=3,
+            model = UNetModel(image_size=mask_size, in_channels=6, model_channels=192, out_channels=3, num_res_blocks=3,
                               attention_resolutions=[32, 16, 8], num_head_channels=64, resblock_updown=True, use_scale_shift_norm=True,
-                              use_new_attention_order=True, use_fp16=fp_16, dropout=0.1)
+                              use_new_attention_order=True, use_fp16=fp_16, dropout=0.1, cond_drop_prob=0.1).to(device)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,
