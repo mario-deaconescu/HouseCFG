@@ -18,17 +18,23 @@ def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, 
     room_types = x_0[:, 0, :, :]
     walls = x_0[:, 1, :, :]
     doors = x_0[:, 2, :, :]
-    wall_weights = torch.where(walls > 0, 10, 1)
-    door_weights = torch.where(doors > -1, 10, 1)
     # room_type_frequencies = RoomType.frequencies()
     # max_count = max(room_type_frequencies.values())
     # normalized_frequencies = {room_type: max_count / count for room_type, count in room_type_frequencies.items()}
     room_type_loss = torch.nn.functional.mse_loss(output[:, 0, :, :], eps[:, 0, :, :], reduction='none').mean(dim=(1, 2))
-    wall_loss = torch.nn.functional.mse_loss(output[:, 1, :, :], eps[:, 1, :, :], reduction='none') * wall_weights
-    wall_loss = wall_loss.mean(dim=(1, 2))
-    door_loss = torch.nn.functional.mse_loss(output[:, 2, :, :], eps[:, 2, :, :], reduction='none') * door_weights
-    door_loss = door_loss.mean(dim=(1, 2))
-    loss = wall_loss + door_loss + room_type_loss
+
+    wall_loss = torch.nn.functional.mse_loss(output[:, 1, :, :], eps[:, 1, :, :], reduction='none')
+    wall_positive_loss = wall_loss * (walls > 0)
+    wall_negative_loss = wall_loss * (walls < 0)
+    wall_loss = wall_positive_loss.mean(dim=(1, 2)) + wall_negative_loss.mean(dim=(1, 2))
+
+    door_loss = torch.nn.functional.mse_loss(output[:, 2, :, :], eps[:, 2, :, :], reduction='none')
+    door_positive_loss = door_loss * (doors > 0)
+    front_door_loss = door_loss * (doors == 0)
+    door_negative_loss = door_loss * (doors < 0)
+    door_loss = door_positive_loss.mean(dim=(1, 2)) + door_negative_loss.mean(dim=(1, 2)) + front_door_loss.mean(dim=(1, 2))
+
+    loss = wall_loss + door_loss * .3 + room_type_loss
     return loss
 
 
