@@ -14,7 +14,7 @@ from src.rplan_masks.karras.denoise import GithubUnet
 
 @torch.no_grad()
 def sample_plans_bubbles(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan', mask_size: int = 64,
-                bubbles: Optional[np.ndarray] = None, condition_scale: float = 1.0,
+                bubbles: Optional[np.ndarray] = None, condition_scale: float = 1.0, force_bubbles: bool = False,
                 rescaled_phi: float = 0.0, ddim: bool = False,
                 device: torch.device = torch.device('cpu')):
     dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
@@ -45,7 +45,7 @@ def sample_plans_bubbles(diffusion: GaussianDiffusion, model, num_samples: int =
     model_kwargs = {
         'masks': masks,
         # 'bubbles': bubbles if input_bubbles is not None else None,
-        'bubbles': bubbles, # TODO
+        'bubbles': bubbles if force_bubbles or (input_bubbles is not None) else None, # TODO
         'cond_scale': condition_scale,
         'rescaled_phi': rescaled_phi,
         # 'src_key_padding_mask': src_key_padding_mask,

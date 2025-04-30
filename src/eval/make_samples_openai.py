@@ -34,11 +34,14 @@ def make_samples_bubbles(model, output_path: str, num_samples: int = 1000, batch
                                 random_scale=0.6)
     while generated < num_samples:
         if condition_scale > 0:
-            raise NotImplementedError("Conditioning on is not implemented yet.")
+            # raise NotImplementedError("Conditioning on is not implemented yet.")
+            bubbles = None # TODO
+            force_bubbles = True
         else:
             bubbles = None
+            force_bubbles = False
         samples = sample_plans_bubbles(diffusion, model, num_samples=batch_size, device=device, data_path=data_path,
-                                          mask_size=mask_size, bubbles=bubbles,
+                                          mask_size=mask_size, bubbles=bubbles, force_bubbles=force_bubbles,
                                           condition_scale=condition_scale, rescaled_phi=rescaled_phi, ddim=ddim)
 
         plans = [ImagePlan(walls=walls, image=rooms, door_image=doors) for rooms, walls, doors in samples]
