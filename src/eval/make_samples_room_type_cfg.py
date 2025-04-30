@@ -1,12 +1,14 @@
 import os
 from typing import Optional
 
+import numpy as np
 import torch
 from tqdm.contrib.concurrent import process_map
 
 from src.eval.make_eval_gt import save_img_plan
 from src.gaussian_noise import BetaSchedule, ModelMeanType, ModelVarType
 from src.respace import SpacedDiffusion, space_timesteps
+from src.rplan.dataset import RPlanImageDataset
 from src.rplan.types import ImagePlan
 from src.rplan_masks.sample_unet_room_types import sample_plans_room_types
 
@@ -29,9 +31,16 @@ def make_samples_room_type_cfg(model, output_path: str, num_samples: int = 1000,
     epoch = 0
 
     os.makedirs(output_path, exist_ok=True)
+    dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
+                                random_scale=0.6)
     while generated < num_samples:
+        if condition_scale > 0:
+            random_samples_types = [dataset[np.random.randint(0, len(dataset))] for _ in range(batch_size)]
+            room_types = [sample.room_types for sample in random_samples_types]
+        else:
+            room_types = None
         samples = sample_plans_room_types(diffusion, model, num_samples=batch_size, device=device, data_path=data_path,
-                                          mask_size=mask_size,
+                                          mask_size=mask_size, room_types=room_types,
                                           condition_scale=condition_scale, rescaled_phi=rescaled_phi, ddim=ddim)
 
         plans = [ImagePlan(walls=walls, image=rooms, door_image=doors) for rooms, walls, doors in samples]

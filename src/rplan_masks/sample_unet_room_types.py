@@ -20,14 +20,10 @@ def sample_plans_room_types(diffusion: GaussianDiffusion, model, num_samples: in
     dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
                                 random_scale=0.6)
     random_samples = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
-    random_samples_types = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
     input_room_types = room_types
     if room_types is not None:
         for i in range(len(random_samples)):
             random_samples[i].room_types = room_types[i]
-    else:
-        for i in range(len(random_samples)):
-            random_samples[i].room_types = random_samples_types[i].room_types
     # random_sample = dataset[0]
     # random_sample = from_export('notebooks/data/export')
     # with open('data/rplan/1.json') as f:
