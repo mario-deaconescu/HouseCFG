@@ -13,17 +13,21 @@ from src.rplan_masks.karras.denoise import GithubUnet
 
 
 @torch.no_grad()
-def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan', mask_size: int = 64,
+def sample_plans_room_types(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan', mask_size: int = 64,
                 room_types: Optional[np.ndarray] = None, condition_scale: float = 1.0,
                 rescaled_phi: float = 0.0, ddim: bool = False,
                 device: torch.device = torch.device('cpu')):
     dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
                                 random_scale=0.6)
     random_samples = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
+    random_samples_types = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
     input_room_types = room_types
     if room_types is not None:
         for i in range(len(random_samples)):
             random_samples[i].room_types = room_types[i]
+    else:
+        for i in range(len(random_samples)):
+            random_samples[i].room_types = random_samples_types[i].room_types
     # random_sample = dataset[0]
     # random_sample = from_export('notebooks/data/export')
     # with open('data/rplan/1.json') as f:
@@ -33,7 +37,7 @@ def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_
     # random_sample = TorchTransformerPlan.from_plan(plan, 32, 100, front_door_at_end=True)
     random_sample_batched = ImagePlan.collate(random_samples)
 
-    images, walls, doors, room_types, masks = random_sample_batched
+    images, walls, doors, room_types, _, masks = random_sample_batched
     images, walls, doors, room_types, masks = images.to(device), walls.to(device), doors.to(device), room_types.to(
         device), masks.to(device)
     # room_types = room_types.float()
