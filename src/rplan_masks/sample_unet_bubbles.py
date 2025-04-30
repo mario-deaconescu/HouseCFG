@@ -36,6 +36,7 @@ def sample_plans_bubbles(diffusion: GaussianDiffusion, model, num_samples: int =
     images, walls, doors, _, bubbles, masks = random_sample_batched
     images, walls, doors, bubbles, masks = images.to(device), walls.to(device), doors.to(device), bubbles.to(
         device), masks.to(device)
+    bubbles = bubbles[:, 0, :, :].unsqueeze(1)
     # room_types = room_types.float()
     # real_room_types = [RoomType.from_one_hot(room_type) for room_type in room_types[0]]
     masks = masks.float()
