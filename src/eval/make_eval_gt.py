@@ -21,3 +21,6 @@ def make_eval_gt(output_path: str, input_path: str = 'data/rplan', epochs: int =
 
     for epoch in range(epochs):
         process_map(save_img_plan, [output_path] * len(dataset), dataset, range(len(dataset)), [epoch] * len(dataset), max_workers=num_workers, chunksize=100, desc=f"Epoch {epoch + 1}/{epochs}", total=len(dataset))
+
+if __name__ == '__main__':
+    make_eval_gt(output_path='outputs/gt', epochs=5, mask_size=256)

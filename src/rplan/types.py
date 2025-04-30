@@ -1465,7 +1465,19 @@ class ImagePlan:
         def upsample(img, factor: tuple[int, int]):
             return np.repeat(np.repeat(img, factor[0], axis=0), factor[1], axis=1)
 
-        walls = self.walls > 0
+        # plt.imshow(labeled)
+        # plt.show()
+
+        rooms_image = self.image.copy()
+        doors_image = self.door_image.copy()
+        walls_image = self.walls.copy()
+        if target_size is not None:
+            scale_factor = target_size[0] // self.walls.shape[0], target_size[1] // self.walls.shape[1]
+            rooms_image = upsample(rooms_image, scale_factor)
+            doors_image = upsample(doors_image, scale_factor)
+            walls_image = upsample(walls_image, scale_factor)
+
+        walls = walls_image > 0
         # walls = upsample(walls)
         # plt.imshow(walls)
         # plt.show()
@@ -1475,15 +1487,6 @@ class ImagePlan:
         # plt.show()
         enclosing = ~walls
         labeled, num_rooms = label(enclosing)
-        # plt.imshow(labeled)
-        # plt.show()
-
-        rooms_image = self.image.copy()
-        doors_image = self.door_image.copy()
-        if target_size is not None:
-            scale_factor = target_size[0] // walls.shape[0], target_size[1] // walls.shape[1]
-            rooms_image = upsample(rooms_image, scale_factor)
-            doors_image = upsample(doors_image, scale_factor)
 
         doors_diffs = np.abs(np.tile(doors_image, (3, 1, 1)) - np.tile(np.array([-1, 0, 1]).reshape(3, 1, 1),
                                                                        (1, doors_image.shape[0], doors_image.shape[1])))
