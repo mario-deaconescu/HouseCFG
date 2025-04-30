@@ -1,7 +1,7 @@
+import os
 from typing import Optional
 
 import torch
-from src.rplan_masks.sample_unet_karras import sample_plan
 from tqdm.contrib.concurrent import process_map
 
 from src.eval.make_eval_gt import save_img_plan
@@ -27,6 +27,8 @@ def make_samples_room_type_cfg(model, output_path: str, num_samples: int = 1000,
 
     generated = 0
     epoch = 0
+
+    os.makedirs(output_path, exist_ok=True)
     while generated < num_samples:
         samples = sample_plans_room_types(diffusion, model, num_samples=batch_size, device=device, data_path=data_path,
                                           mask_size=mask_size,
