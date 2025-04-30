@@ -1546,4 +1546,4 @@ class ImagePlan:
                 polygon = polygon.simplify(tolerance=simplify, preserve_topology=True)
             rooms.append(Plan.Room(room_type=room_type, corners=polygon.exterior.coords))
 
-        return Plan(rooms=rooms), ImagePlan(walls=walls.float() * 2 - 1, image=rooms_image, door_image=doors_image)
+        return Plan(rooms=rooms), ImagePlan(walls=walls * 2 - 1, image=rooms_image, door_image=doors_image)
