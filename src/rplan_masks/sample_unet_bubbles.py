@@ -44,7 +44,8 @@ def sample_plans_bubbles(diffusion: GaussianDiffusion, model, num_samples: int =
 
     model_kwargs = {
         'masks': masks,
-        'bubbles': bubbles if input_bubbles is not None else None,
+        # 'bubbles': bubbles if input_bubbles is not None else None,
+        'bubbles': bubbles, # TODO
         'cond_scale': condition_scale,
         'rescaled_phi': rescaled_phi,
         # 'src_key_padding_mask': src_key_padding_mask,
