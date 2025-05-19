@@ -652,7 +652,8 @@ class UNetModel(nn.Module):
 
         cond_drop_prob = kwargs.get('cond_drop_prob', self.cond_drop_prob)
         keep_cond = torch.rand(x.shape[0], device=x.device) > cond_drop_prob
-        bubbles = kwargs.get('bubbles', torch.zeros(kwargs['masks'].shape, device=x.device))
+        bubbles = kwargs.get('bubbles', None)
+        bubbles = torch.zeros(kwargs['masks'].shape, device=x.device) if bubbles is None else bubbles
         cond_flags = keep_cond.unsqueeze(1).unsqueeze(2).unsqueeze(3).repeat(1, 1,
                                                                              x.shape[2], x.shape[3])
         bubbles *= cond_flags
