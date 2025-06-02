@@ -65,7 +65,7 @@ def make_samples_room_type_cfg(model, output_path: str, num_samples: int = 1000,
         input_room_types = np.array(input_room_types)
         output_room_types = np.array(output_room_types)
 
-        np.savez_compressed(os.path.join(output_path, 'room_types.npz'),
+        np.savez_compressed(f"{output_path}.npz",
                             input_room_types=input_room_types, output_room_types=output_room_types)
 
 
