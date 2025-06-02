@@ -361,7 +361,6 @@ class GaussianDiffusion:
 
         Same usage as p_sample_loop().
         """
-        model.eval()
         final = None
         for sample, _, additional_sample in tqdm(self.ddim_sample_loop_progressive(
             model,
@@ -374,7 +373,6 @@ class GaussianDiffusion:
             eta=eta,
         )):
             final = sample, additional_sample
-        model.train()
         return final
 
     def ddim_sample_loop_progressive(
@@ -409,6 +407,8 @@ class GaussianDiffusion:
 
             indices = tqdm(indices)
 
+        model.eval()
+
         for i in indices:
             t = torch.tensor([i] * shape[0], device=device)
             with torch.no_grad():
@@ -422,4 +422,7 @@ class GaussianDiffusion:
                 )
                 yield out
                 img = out[0]
+
+
+        model.train()
 

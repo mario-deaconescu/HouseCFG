@@ -5,11 +5,13 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
+from src.eval.make_samples_room_type_cfg import make_samples_room_type_cfg
 from src.gaussian_noise import GaussianDiffusion, BetaSchedule, ModelMeanType, ModelVarType
 from src.rplan.dataset import RPlanMasksDataset, RPlanImageDataset
 from src.rplan.types import MaskPlan, RoomType, ImagePlan
-from src.rplan_masks.karras.cfg import CFGUnet
+from src.rplan_masks.karras.cfg import CFGUnet, CFGUnetWithScale
 from src.rplan_masks.karras.denoise import GithubUnet
+from src.rplan_masks.openai.unet import UNetModel
 
 
 @torch.no_grad()
@@ -59,3 +61,19 @@ def sample_plans_bubbles(diffusion: GaussianDiffusion, model, num_samples: int =
         samples, _ = diffusion.p_sample_loop(model, x.shape, model_kwargs=model_kwargs)
     samples = samples.cpu().numpy()
     return samples
+
+if __name__ == '__main__':
+    model = UNetModel(image_size=64, in_channels=6, model_channels=192, out_channels=3, num_res_blocks=3,
+                      attention_resolutions=[32, 16, 8], num_head_channels=64, resblock_updown=True,
+                      use_scale_shift_norm=True,
+                      use_new_attention_order=True, use_fp16=False, dropout=0.1, cond_drop_prob=1).to('cuda')
+
+    model_path = 'drive/MyDrive/ColabFiles/diffusion_generation/export/checkpoints_unet_openai/2025-04-30_09-55-00/model_9_1000.pt'
+    # model_path = 'model_15_1500.pt'
+    # state_dict = torch.load(model_path, map_location='cuda')
+    # model.load_state_dict(state_dict)
+    full_model = CFGUnetWithScale(model).to('mps')
+    make_samples_room_type_cfg(full_model,
+                               'drive/MyDrive/ColabFiles/diffusion_generation/export/eval/sample_bubbles_100',
+                               data_path='data/rplan', mask_size=64, num_samples=1_000, num_timesteps=100,
+                               batch_size=128, ddim=True, target_size=(256, 256), condition_scale=1)

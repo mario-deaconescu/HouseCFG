@@ -13,23 +13,24 @@ from src.rplan_masks.karras.denoise import GithubUnet
 
 
 @torch.no_grad()
-def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan', mask_size: int = 64,
-                masks: Optional[torch.Tensor] = None, bubbles: Optional[torch.Tensor] = None,
-                ddim: bool = False,
-                device: torch.device = torch.device('cpu')):
+def sample_plan_progressive(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan',
+                            mask_size: int = 64,
+                            masks: Optional[torch.Tensor] = None, bubbles: Optional[torch.Tensor] = None,
+                            ddim: bool = False,
+                            device: torch.device = torch.device('cpu')):
     if masks is None or bubbles is None:
         input_masks = masks
         input_bubbles = bubbles
         dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
                                     random_scale=0.6)
         random_samples = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
-    # random_sample = dataset[0]
-    # random_sample = from_export('notebooks/data/export')
-    # with open('data/rplan/1.json') as f:
-    #     raw_plan = RawPlan(json.load(f))
-    #
-    # plan = Plan.from_raw(raw_plan)
-    # random_sample = TorchTransformerPlan.from_plan(plan, 32, 100, front_door_at_end=True)
+        # random_sample = dataset[0]
+        # random_sample = from_export('notebooks/data/export')
+        # with open('data/rplan/1.json') as f:
+        #     raw_plan = RawPlan(json.load(f))
+        #
+        # plan = Plan.from_raw(raw_plan)
+        # random_sample = TorchTransformerPlan.from_plan(plan, 32, 100, front_door_at_end=True)
         random_sample_batched = ImagePlan.collate(random_samples)
 
         images, walls, doors, room_types, bubbles, masks = random_sample_batched
@@ -43,8 +44,8 @@ def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_
             masks = input_masks.to(device)
     else:
         random_sample_batched = None
-    # room_types = room_types.float()
-    # real_room_types = [RoomType.from_one_hot(room_type) for room_type in room_types[0]]
+        # room_types = room_types.float()
+        # real_room_types = [RoomType.from_one_hot(room_type) for room_type in room_types[0]]
         masks = masks.float()
     # masks = torch.ones_like(masks, device=device)
     # x = torch.cat([images, walls, doors], dim=1)
@@ -57,12 +58,29 @@ def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_
         # 'nodes_to_graph': nodes_to_graph,
     }
 
-    if ddim:
-        samples, _ = diffusion.ddim_sample_loop(model, (num_samples, 3, mask_size, mask_size), model_kwargs=model_kwargs)
-    else:
-        samples, _ = diffusion.p_sample_loop(model, (num_samples, 3, mask_size, mask_size), model_kwargs=model_kwargs)
-    samples = samples.cpu().numpy()
-    return samples, random_sample_batched
+    generator = diffusion.ddim_sample_loop_progressive if ddim else diffusion.p_sample_loop_progressive
+    total_steps = diffusion.num_timesteps
+    for step, (samples, pred_x_0, _) in enumerate(
+            generator(model, (num_samples, 3, mask_size, mask_size), model_kwargs=model_kwargs)):
+        if step == total_steps - 1:
+            final = True
+            output = samples.detach().cpu().numpy()
+        else:
+            final = False
+            output = pred_x_0.detach().cpu().numpy()
+        yield output, random_sample_batched, final
+
+
+@torch.no_grad()
+def sample_plan(diffusion: GaussianDiffusion, model, num_samples: int = 1, data_path='data/rplan', mask_size: int = 64,
+                masks: Optional[torch.Tensor] = None, bubbles: Optional[torch.Tensor] = None,
+                ddim: bool = False,
+                device: torch.device = torch.device('cpu')):
+    for output, random_sample_batched, final in sample_plan_progressive(diffusion, model, num_samples, data_path,
+                                                                        mask_size, masks, bubbles, ddim, device):
+        if final:
+            return output, random_sample_batched
+    return None
 
 
 if __name__ == '__main__':

@@ -5,26 +5,21 @@ import itertools
 import math
 import pickle
 from copy import copy
-from functools import cache
+from dataclasses import dataclass
 from typing import Any, Optional, Callable
 
 import cv2
 import networkx as nx
 import numpy as np
+import torch
 from scipy.ndimage import label
 from scipy.stats import truncnorm
 from shapely import set_precision
-import torch
-from attr import dataclass
-from matplotlib import pyplot as plt
-from networkx.classes import neighbors
-from networkx.linalg.graphmatrix import adjacency_matrix
-from shapely.affinity import scale, rotate
+from shapely.affinity import rotate
 from shapely.geometry import Polygon, CAP_STYLE, JOIN_STYLE
 from skimage.morphology import skeletonize
+from skimage.segmentation import felzenszwalb, find_boundaries
 
-from src.gaussian_noise import GaussianDiffusion
-from src.utils.binary import np_dec2bin
 from src.utils.linked_list import LinkedList
 
 
@@ -223,6 +218,9 @@ class Plan:
             new_corners.append(self.corners[-1])
 
             self.corners = np.array(new_corners)
+
+        def straighten(self):
+            corner_list = []
 
         def to_mask(self, canvas_size: tuple[int, int], mask_size: tuple[int, int]) -> np.ndarray:
             mask = np.zeros(mask_size, dtype=np.uint8)
@@ -756,6 +754,7 @@ class Plan:
         self.remove_overlaps()
 
     def visualize(self, view_graph: bool = True, view_door_index: bool = False, view_room_type: bool = False, ax=None):
+        from matplotlib import pyplot as plt
         if ax is None:
             fig, ax = plt.subplots()
             # Set limits
@@ -780,9 +779,10 @@ class Plan:
                 centroid = room.centroid()
                 ax.plot(centroid[0], centroid[1], 'o', color=colors[room_idx], markersize=5)
                 # Plot the room index
-                ax.text(centroid[0], centroid[1], str(room_idx), fontsize=12, color='black',
-                        horizontalalignment='center',
-                        verticalalignment='center')
+                if not view_room_type:
+                    ax.text(centroid[0], centroid[1], str(room_idx), fontsize=12, color='black',
+                            horizontalalignment='center',
+                            verticalalignment='center')
 
         for door_idx, (room1_idx, room2_idx, door) in enumerate(self.edges):
             # Draw door
@@ -1450,23 +1450,31 @@ class ImagePlan:
 
         return room_type_vector
 
-    def to_image(self) -> np.ndarray:
+    def to_image(self, alpha: bool = False) -> np.ndarray:
         def rescale(array: np.ndarray):
             return ((array + 1) / 2 * 255).astype(np.uint8)
 
         rooms = rescale(self.image)
         walls = rescale(self.walls)
         doors = rescale(self.door_image)
+        if alpha:
+            alpha_channel = (rooms + walls + doors) > 0
+            alpha_channel = (alpha_channel * 255).astype(np.uint8)
+            return np.stack([rooms, walls, doors, alpha_channel], axis=-1)
+        else:
+            return np.stack([rooms, walls, doors], axis=-1)
 
-        return np.stack([rooms, walls, doors], axis=-1)
-
-    def to_plan(self: ImagePlan, thin_walls: bool = False, simplify: Optional[float] = None,
+    def to_plan(self: ImagePlan, thin_walls: bool = False, simplify: Optional[float] = None, use_felzenszwalb: bool = False,
+                image_only: boolean = False,
                 target_size: Optional[tuple[int, int]] = None) -> tuple[Plan, ImagePlan]:
         def upsample(img, factor: tuple[int, int]):
             return np.repeat(np.repeat(img, factor[0], axis=0), factor[1], axis=1)
 
         # plt.imshow(labeled)
         # plt.show()
+
+        # def thin(image: np.ndarray):
+        #
 
         rooms_image = self.image.copy()
         doors_image = self.door_image.copy()
@@ -1476,15 +1484,40 @@ class ImagePlan:
             rooms_image = upsample(rooms_image, scale_factor)
             doors_image = upsample(doors_image, scale_factor)
             walls_image = upsample(walls_image, scale_factor)
+        else:
+            scale_factor = (1, 1)
 
         walls = walls_image > 0
         # walls = upsample(walls)
         # plt.imshow(walls)
         # plt.show()
+        if use_felzenszwalb:
+            segments = felzenszwalb(rooms_image, scale=250 * scale_factor[0] * scale_factor[1], sigma=0.4, min_size=60 * scale_factor[0] * scale_factor[1])
+            # segments = felzenszwalb(self.image, scale=200, sigma=0.3, min_size=20)
+            segment_walls = find_boundaries(segments, mode='outer', background=0)
+            segment_walls = cv2.resize(segment_walls.astype(np.uint8), walls.shape[::-1], interpolation=cv2.INTER_NEAREST) > 0
+            # segment_walls = segment_walls.astype(np.float32)
+            # walls = walls.astype(np.float32)
+            # window = cv2.createHanningWindow(walls.shape[::-1], cv2.CV_32F)
+            #
+            # # Compute shift
+            # shift, response = cv2.phaseCorrelate(walls, segment_walls, window=window)
+            #
+            # # print(f"Estimated shift: dx={shift[0]:.2f}, dy={shift[1]:.2f}")
+            #
+            # # Apply the shift to mask2 to align it with mask1
+            # dx, dy = shift
+            # M = np.float32([[1, 0, -dx], [0, 1, -dy]])
+            # aligned_mask2 = cv2.warpAffine(segment_walls, M, (segment_walls.shape[1], segment_walls.shape[0]), flags=cv2.INTER_NEAREST)
+            # walls = (walls + aligned_mask2) > 0
+            # walls = skeletonize((walls + segment_walls) > 0) + walls > 0
+            # walls = walls + segment_walls > 0
+            walls = segment_walls | walls
         if thin_walls:
             walls = skeletonize(walls)
         # plt.imshow(walls)
         # plt.show()
+        # enclosing = ~walls if not use_felzenszwalb else ~segment_walls
         enclosing = ~walls
         labeled, num_rooms = label(enclosing)
 
@@ -1536,7 +1569,7 @@ class ImagePlan:
             room_type = ImagePlan.value_to_room_type(value)
             room_type_value = ImagePlan.room_type_to_value(room_type)
             rooms_image[mask] = room_type_value
-            if room_type is None or mask.sum() < 5:
+            if room_type is None or mask.sum() < 5 or image_only:
                 continue
             contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             polygons = [Polygon(contour.squeeze()) for contour in contours if contour.shape[0] > 2]
@@ -1544,6 +1577,20 @@ class ImagePlan:
 
             if simplify is not None:
                 polygon = polygon.simplify(tolerance=simplify, preserve_topology=True)
-            rooms.append(Plan.Room(room_type=room_type, corners=polygon.exterior.coords))
+            rooms.append(Plan.Room(room_type=room_type, corners=np.array(polygon.exterior.coords)))
 
-        return Plan(rooms=rooms), ImagePlan(walls=walls * 2 - 1, image=rooms_image, door_image=doors_image)
+        plan = Plan(rooms=rooms) if not image_only else None
+        return plan, ImagePlan(walls=walls * 2 - 1, image=rooms_image, door_image=doors_image)
+
+    @staticmethod
+    def from_image(image: np.ndarray) -> ImagePlan:
+        assert image.ndim == 3, "Image must be a 2D array."
+        img = image.copy()
+        rooms = img[:,:, 0]
+        walls = img[:, :, 1]
+        doors = img[:, :, 2]
+        walls = walls / 255 * 2 - 1
+        doors = doors / 255 * 2 - 1
+        rooms = rooms / 255 * 2 - 1
+        return ImagePlan(image=rooms, walls=walls, door_image=doors)
+
