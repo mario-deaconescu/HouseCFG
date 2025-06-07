@@ -14,7 +14,7 @@ from src.rplan_masks.karras.denoise import GithubUnet
 from src.schedule_sampler import ScheduleSampler, LossSampler
 from src.utils.diffusion_trainer import DiffusionTrainer, DiffusionStepOutput
 
-def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, x_t: torch.Tensor, **model_kwargs):
+def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, x_t: torch.Tensor, t: torch.Tensor, **model_kwargs):
     room_types = x_0[:, 0, :, :]
     walls = x_0[:, 1, :, :]
     doors = x_0[:, 2, :, :]

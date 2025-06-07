@@ -19,7 +19,7 @@ from src.rplan_masks.unet_github import GitHubUNet
 from src.rplan_masks.unet_trainer import UnetTrainer
 from src.schedule_sampler import LossSampler, UniformSampler
 
-def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, x_t: torch.Tensor, **model_kwargs):
+def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, x_t: torch.Tensor, t: torch.Tensor, **model_kwargs):
     # valid_indices = ~model_kwargs['src_key_padding_mask']
     # eps[~valid_indices] = 0
     mse = torch.nn.functional.mse_loss(output, eps, reduction='none').mean(dim=(2, 3))

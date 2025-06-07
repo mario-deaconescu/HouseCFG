@@ -287,7 +287,7 @@ class GaussianDiffusion:
         else:
             mask = None
         if self.model_mean_type == ModelMeanType.EPSILON and 'custom_eps_loss' in model_kwargs:
-            terms['loss'] = model_kwargs['custom_eps_loss'](model_output, target, x_0, x_t, **model_kwargs)
+            terms['loss'] = model_kwargs['custom_eps_loss'](model_output, target, x_0, x_t, t, **model_kwargs)
         else:
             terms["mse"] = mean_flat((target - model_output) ** 2, mask)
             if "vb" in terms:
