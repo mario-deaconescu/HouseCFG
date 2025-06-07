@@ -7,7 +7,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import Dataset
 
-from rplan.area_constants import MEAN_AREA_PER_ROOM_TYPE, TOTAL_MEAN_AREA
+from src.rplan.area_constants import MEAN_AREA_PER_ROOM_TYPE, TOTAL_MEAN_AREA
 from src.gaussian_noise import GaussianDiffusion, BetaSchedule, ModelMeanType, ModelVarType
 from src.rplan.dataset import RPlanImageDataset
 from src.rplan.types import MaskPlan, ImagePlan, ImagePlanCollated, RoomType
