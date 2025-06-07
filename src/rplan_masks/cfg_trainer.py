@@ -87,18 +87,15 @@ class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
 
         pred_x_0 = self.diffusion.predict_x_0_from_eps(x_t, t, eps)
         plan_areas = (pred_x_0[:, 0, :, :] > -0.9).float().sum(dim=(1, 2))
-        pred_x_0_expanded = pred_x_0[:, 0, :, :].unsqueeze(1).expand(1, RoomType.restricted_length() + 1, -1, -1)
-        print('here')
+        pred_x_0_expanded = pred_x_0[:, 0, :, :].unsqueeze(1).expand(-1, RoomType.restricted_length() + 1, -1, -1)
 
         room_type_centers = np.linspace(-1, 1, RoomType.restricted_length() + 1)
         sigma = 0.2 / 15
         room_type_centers = torch.tensor(room_type_centers, device=pred_x_0.device, dtype=pred_x_0.dtype)
         room_type_centers = room_type_centers.view(1, -1, 1, 1)
         room_type_centers = room_type_centers.expand(pred_x_0.shape[0], -1, pred_x_0.shape[2], pred_x_0.shape[3])
-        print(room_type_centers.shape)
         room_type_probs = torch.exp(
             -((pred_x_0_expanded - room_type_centers) ** 2) / (2 * sigma ** 2))
-        print(room_type_probs.shape)
         room_type_probs = room_type_probs / (room_type_probs.sum(dim=1,
                                                                  keepdim=True) + 1e-8)  # Shape: (batch_size, num_room_types, height, width)
 
@@ -108,8 +105,6 @@ class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
 
         area_loss = torch.nn.functional.mse_loss(room_type_areas, target_room_type_areas, reduction='none').mean(
             dim=1)  # Shape: (batch_size,)
-
-        print(area_loss, room_type_areas, target_room_type_areas)
 
         return mse + area_loss * self.constraint_loss
 
