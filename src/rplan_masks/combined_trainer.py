@@ -20,11 +20,7 @@ def custom_eps_loss(output: torch.Tensor, eps: torch.Tensor, x_0: torch.Tensor, 
     mse = mse.mean(dim=1)
     return mse
 
-
-
-
-
-class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
+class CombinedTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
 
     def __init__(self, epochs: int, batch_size: int, lr: float, mask_size: int = 64,
                  model: Optional[torch.nn.Module] = None, dataset: Optional[Dataset] = None,
@@ -39,7 +35,7 @@ class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
         if model is None:
-            model = CFGUnet(dim=mask_size, channels=4, out_dim=3, cond_drop_prob=0.2).to(device)
+            model = CFGUnet(dim=mask_size, channels=6, out_dim=3, cond_drop_prob=0.1, bubble_dim=1).to(device)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,
@@ -114,7 +110,7 @@ class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         images, walls, doors, masks = images.to(self.device), walls.to(self.device), doors.to(
             self.device), masks.to(self.device)
         if bubbles is not None:
-            bubbles = bubbles.to(self.device)
+            bubbles = bubbles.to(self.device)[:, 0, :, :].unsqueeze(1)
         if room_types is not None:
             room_types = room_types.to(self.device)
         masks = masks.float()
@@ -122,7 +118,7 @@ class CfgTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
         model_kwargs = {
             'masks': masks,
             'room_types': room_types,
-            # 'bubbles': bubbles,
+            'bubbles': bubbles,
             'custom_eps_loss': self.custom_eps_loss_with_room_types
         }
 
