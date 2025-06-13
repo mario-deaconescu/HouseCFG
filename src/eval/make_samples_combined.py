@@ -1,9 +1,11 @@
 import os
 from typing import Optional
 
+import numpy as np
 import torch
 from tqdm.contrib.concurrent import process_map
 
+from rplan_masks.sample_unet_combined import sample_plans_combined
 from src.eval.make_eval_gt import save_img_plan
 from src.gaussian_noise import BetaSchedule, ModelMeanType, ModelVarType
 from src.respace import SpacedDiffusion, space_timesteps
@@ -12,11 +14,11 @@ from src.rplan.types import ImagePlan
 from src.rplan_masks.sample_unet_bubbles import sample_plans_bubbles
 
 
-def make_samples_bubbles(model, output_path: str, num_samples: int = 1000, batch_size: int = 1,
+def make_samples_combined(model, output_path: str, num_samples: int = 1000, batch_size: int = 1,
                                num_timesteps: int = 1000,
                                data_path='../data/rplan', mask_size=64, condition_scale=1, rescaled_phi=0, ddim=True,
                                thin_walls=True, simplify: Optional[float] = None, target_size: Optional[tuple[int, int]] = None,
-                               num_workers: int = 8):
+                               num_workers: int = 8, eval_constraints: bool = False):
     T = 1000
     device = torch.device(
         'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
@@ -32,24 +34,43 @@ def make_samples_bubbles(model, output_path: str, num_samples: int = 1000, batch
     os.makedirs(output_path, exist_ok=True)
     # dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
     #                             random_scale=0.6)
+    input_room_types = []
+    output_room_types = []
     while generated < num_samples:
         if condition_scale > 0:
             # raise NotImplementedError("Conditioning on is not implemented yet.")
-            bubbles = None # TODO
             force_bubbles = True
         else:
-            bubbles = None
             force_bubbles = False
-        samples = sample_plans_bubbles(diffusion, model, num_samples=batch_size, device=device, data_path=data_path,
-                                          mask_size=mask_size, bubbles=bubbles, force_bubbles=force_bubbles,
+        output = sample_plans_combined(diffusion, model, num_samples=batch_size, device=device, data_path=data_path,
+                                          mask_size=mask_size, force_bubbles=force_bubbles,
                                           condition_scale=condition_scale, rescaled_phi=rescaled_phi, ddim=ddim)
+
+        samples = output['samples']
+        room_types = output['room_types']
 
         plans = [ImagePlan(walls=walls, image=rooms, door_image=doors) for rooms, walls, doors in samples]
 
-        plans = [plan.to_plan(thin_walls=thin_walls, simplify=simplify, target_size=target_size)[1] for plan in plans]
+        plan_pairs = [plan.to_plan(thin_walls=thin_walls, simplify=simplify, target_size=target_size) for plan in plans]
 
-        process_map(save_img_plan, [output_path] * len(plans), plans, range(len(plans)), [epoch] * len(plans),
+        image_plans = [image_plan for _, image_plan in plan_pairs]
+
+        if eval_constraints:
+            plans = [ImagePlan.from_plan(plan, mask_size=mask_size, with_bubbles=False) for plan, _ in plan_pairs]
+
+            input_room_types.extend(room_types)
+            output_room_types.extend([plan.room_types for plan in plans])
+
+        process_map(save_img_plan, [output_path] * len(image_plans), image_plans, range(len(image_plans)),
+                    [epoch] * len(image_plans),
                     max_workers=num_workers, chunksize=100, desc=f"Generating Step {epoch}: {generated}/{num_samples}",
-                    total=len(plans))
+                    total=len(image_plans))
         generated += len(plans)
         epoch += 1
+
+    if eval_constraints:
+        input_room_types = np.array(input_room_types)
+        output_room_types = np.array(output_room_types)
+
+        np.savez_compressed(f"{output_path}.npz",
+                            input_room_types=input_room_types, output_room_types=output_room_types)
