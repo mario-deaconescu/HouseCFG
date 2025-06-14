@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from tqdm.contrib.concurrent import process_map
 
-from rplan_masks.sample_unet_combined import sample_plans_combined
+from src.rplan_masks.sample_unet_combined import sample_plans_combined
 from src.eval.make_eval_gt import save_img_plan
 from src.gaussian_noise import BetaSchedule, ModelMeanType, ModelVarType
 from src.respace import SpacedDiffusion, space_timesteps
