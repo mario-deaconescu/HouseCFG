@@ -35,7 +35,7 @@ class CombinedTrainer(DiffusionTrainer[ImagePlan, ImagePlanCollated]):
             device = torch.device(
                 'cuda' if torch.cuda.is_available() else 'mps' if torch.mps.is_available() else 'cpu')
         if model is None:
-            model = CFGUnet(dim=mask_size, channels=6, out_dim=3, cond_drop_prob=0.1, bubble_dim=1).to(device)
+            model = CFGUnet(dim=mask_size, channels=6, out_dim=3, cond_drop_prob=0.2, bubble_dim=1).to(device)
         if dataset is None:
             dataset = RPlanImageDataset('data/rplan', load_base_rplan=True, random_flip=True, random_scale=0.6,
                                         no_doors=False,

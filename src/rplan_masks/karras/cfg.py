@@ -343,8 +343,8 @@ class CFGUnet(nn.Module):
             nn.Linear(classes_dim, classes_dim)
         )
 
-        # if self.use_bubbles:
-        #     self.null_bubble_diagram = nn.Parameter(torch.randn(1, self.bubble_dim, dim, dim))
+        if self.use_bubbles:
+            self.null_bubble_diagram = nn.Parameter(torch.randn(1, self.bubble_dim, dim, dim))
 
         # layers
 
@@ -397,22 +397,14 @@ class CFGUnet(nn.Module):
         masks = kwargs['masks']
         room_types = kwargs.get('room_types', None)
 
-        if self.use_bubbles:
-            keep_cond = torch.rand(x.shape[0], device=x.device) > cond_drop_prob
-            bubbles = kwargs.get('bubbles', None)
-            bubbles = torch.zeros(kwargs['masks'].shape, device=x.device) if bubbles is None else bubbles
-            cond_flags = keep_cond.unsqueeze(1).unsqueeze(2).unsqueeze(3).repeat(1, 1,
-                                                                                 x.shape[2], x.shape[3])
-            bubbles *= cond_flags
-
         if room_types is None:
             classes_emb = self.null_classes_emb.repeat(batch, 1)
         else:
             # Turn frequency vector into probability distribution
-            room_count = room_types.sum(dim = 1)
+            room_count = room_types.sum(dim=1)
             room_types = room_types / room_count.unsqueeze(1)
             # Add the total number of rooms to the room types
-            room_types = torch.cat((room_types, room_count.unsqueeze(1)), dim = 1)
+            room_types = torch.cat((room_types, room_count.unsqueeze(1)), dim=1)
             classes_emb = self.classes_emb(room_types)
 
         if cond_drop_prob > 0:
@@ -424,6 +416,17 @@ class CFGUnet(nn.Module):
                 classes_emb,
                 null_classes_emb
             )
+
+            if self.use_bubbles:
+                bubbles = kwargs.get('bubbles', None)
+                bubbles = torch.zeros(kwargs['masks'].shape, device=x.device) if bubbles is None else bubbles
+                cond_flags = keep_mask.unsqueeze(1).unsqueeze(2).unsqueeze(3).repeat(1, 1,
+                                                                                     x.shape[2], x.shape[3])
+                bubbles = torch.where(
+                    cond_flags,
+                    bubbles,
+                    self.null_bubble_diagram.repeat(batch, 1, 1, 1)
+                )
 
         c = self.classes_mlp(classes_emb)
 
