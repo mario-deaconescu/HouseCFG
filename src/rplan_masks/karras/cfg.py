@@ -411,6 +411,8 @@ class CFGUnet(nn.Module):
             bubbles = kwargs.get('bubbles', None)
             if bubbles is None:
                 bubbles = self.null_bubble_diagram.repeat(batch, 1, 1, 1)
+                cond_flags = torch.zeros(bubbles.shape, device=x.device, dtype=torch.bool)
+
 
         if cond_drop_prob > 0:
             keep_mask = prob_mask_like((batch,), 1 - cond_drop_prob, device = device)
