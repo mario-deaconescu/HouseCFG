@@ -407,6 +407,11 @@ class CFGUnet(nn.Module):
             room_types = torch.cat((room_types, room_count.unsqueeze(1)), dim=1)
             classes_emb = self.classes_emb(room_types)
 
+        if self.use_bubbles:
+            bubbles = kwargs.get('bubbles', None)
+            if bubbles is None:
+                bubbles = self.null_bubble_diagram.repeat(batch, 1, 1, 1)
+
         if cond_drop_prob > 0:
             keep_mask = prob_mask_like((batch,), 1 - cond_drop_prob, device = device)
             null_classes_emb = repeat(self.null_classes_emb, 'd -> b d', b = batch)
