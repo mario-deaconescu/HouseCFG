@@ -21,8 +21,11 @@ def sample_plans_combined(diffusion: GaussianDiffusion, model, num_samples: int 
                           condition_scale: float = 1.0, force_bubbles: bool = False,
                           rescaled_phi: float = 0.0, ddim: bool = False,
                           device: torch.device = torch.device('cpu')):
-    dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), shuffle_rooms=True,
-                                random_scale=0.6)
+    dataset = RPlanImageDataset(data_path=data_path, mask_size=(mask_size, mask_size), random_flip=True, random_scale=0.6,
+                                no_doors=False,
+                                no_front_door=False,
+                                random_translate=True,
+                                random_rotate=True, shuffle_rooms=True)
     random_samples = [dataset[np.random.randint(0, len(dataset))] for _ in range(num_samples)]
     input_bubbles = bubbles
     if bubbles is not None:
