@@ -1,0 +1,9 @@
+fastapi[standard]
+pydantic-settings
+torch
+opencv-python
+scipy
+shapely
+scikit-image
+tqdm
+einops

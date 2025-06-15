@@ -7,3 +7,11 @@ outputs/
 models/
 processed_rplan/
 ckpts/
+houseganpp/
+
+.venv/
+dump/
+
+frontend/node_modules/
+frontend/.idea/
+frontend/dist/
