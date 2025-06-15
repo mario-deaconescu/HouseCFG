@@ -1,17 +1,17 @@
-data
+/data
 .cadence
 .idea
 checkpoints*/
-src/eval/house_diffusion/
-outputs/
-models/
-processed_rplan/
-ckpts/
-houseganpp/
+/outputs/
+/models/
+/processed_rplan/
+/ckpts/
 
 .venv/
-dump/
+/dump/
 
-frontend/node_modules/
-frontend/.idea/
-frontend/dist/
+outputs/
+
+
+/src/eval/house_diffusion/
+/src/eval/houseganpp/

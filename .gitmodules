@@ -1,0 +1,6 @@
+[submodule "lib/house_diffusion"]
+	path = lib/house_diffusion
+	url = https://github.com/mario-deaconescu/house_diffusion_housecfg
+[submodule "lib/houseganpp"]
+	path = lib/houseganpp
+	url = https://github.com/mario-deaconescu/houseganpp
