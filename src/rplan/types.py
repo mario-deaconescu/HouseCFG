@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import enum
 import itertools
 import math
@@ -1466,15 +1468,25 @@ class ImagePlan:
 
     def to_plan(self: ImagePlan, thin_walls: bool = False, simplify: Optional[float] = None, use_felzenszwalb: bool = False,
                 image_only: boolean = False,
-                target_size: Optional[tuple[int, int]] = None) -> tuple[Plan, ImagePlan]:
+                target_size: Optional[tuple[int, int]] = None, visualize: Optional[str] = None) -> tuple[Plan, ImagePlan]:
         def upsample(img, factor: tuple[int, int]):
             return np.repeat(np.repeat(img, factor[0], axis=0), factor[1], axis=1)
 
-        # plt.imshow(labeled)
-        # plt.show()
+        if visualize:
+            import matplotlib.pyplot as plt
+            os.makedirs(visualize, exist_ok=True)
+            def prepare_plot():
+                fig, ax = plt.subplots(figsize=(5, 5))
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.axis('off')
+                fig.tight_layout(pad=0)
+                return fig, ax
+            fig, ax = prepare_plot()
+            ax.imshow(255 - self.to_image())
+            plt.savefig(os.path.join(visualize, 'original.png'), bbox_inches='tight', pad_inches=0)
+            plt.show()
 
-        # def thin(image: np.ndarray):
-        #
 
         rooms_image = self.image.copy()
         doors_image = self.door_image.copy()
@@ -1487,6 +1499,13 @@ class ImagePlan:
         else:
             scale_factor = (1, 1)
 
+        if visualize:
+            fig, ax = prepare_plot()
+            ax.imshow(255 - ImagePlan(rooms_image, walls_image, doors_image).to_image())
+            plt.savefig(os.path.join(visualize, 'upsampled.png'), bbox_inches='tight', pad_inches=0)
+            plt.show()
+
+
         walls = walls_image > 0
         # walls = upsample(walls)
         # plt.imshow(walls)
@@ -1496,6 +1515,12 @@ class ImagePlan:
             # segments = felzenszwalb(self.image, scale=200, sigma=0.3, min_size=20)
             segment_walls = find_boundaries(segments, mode='outer', background=0)
             segment_walls = cv2.resize(segment_walls.astype(np.uint8), walls.shape[::-1], interpolation=cv2.INTER_NEAREST) > 0
+            if visualize:
+                fig, ax = prepare_plot()
+                ax.imshow(segment_walls)
+                plt.savefig(os.path.join(visualize, 'felzenszwalb.png'), bbox_inches='tight', pad_inches=0)
+                plt.show()
+
             # segment_walls = segment_walls.astype(np.float32)
             # walls = walls.astype(np.float32)
             # window = cv2.createHanningWindow(walls.shape[::-1], cv2.CV_32F)
@@ -1515,11 +1540,23 @@ class ImagePlan:
             walls = segment_walls | walls
         if thin_walls:
             walls = skeletonize(walls)
+            if visualize:
+                fig, ax = prepare_plot()
+                ax.imshow(walls)
+                plt.savefig(os.path.join(visualize, 'skeletonized.png'), bbox_inches='tight', pad_inches=0)
+                plt.show()
+
         # plt.imshow(walls)
         # plt.show()
         # enclosing = ~walls if not use_felzenszwalb else ~segment_walls
         enclosing = ~walls
         labeled, num_rooms = label(enclosing)
+        if visualize:
+            fig, ax = prepare_plot()
+            ax.imshow(labeled)
+            plt.savefig(os.path.join(visualize, 'labeled.png'), bbox_inches='tight', pad_inches=0)
+            plt.show()
+
 
         doors_diffs = np.abs(np.tile(doors_image, (3, 1, 1)) - np.tile(np.array([-1, 0, 1]).reshape(3, 1, 1),
                                                                        (1, doors_image.shape[0], doors_image.shape[1])))
@@ -1530,6 +1567,8 @@ class ImagePlan:
         # plt.show()
 
         rooms = []
+        if visualize:
+            original_rooms = []
         for room_id in range(1, num_rooms + 1):
             mask = labeled == room_id
             if mask.sum() < 5:
@@ -1573,13 +1612,36 @@ class ImagePlan:
                 continue
             contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             polygons = [Polygon(contour.squeeze()) for contour in contours if contour.shape[0] > 2]
+            if len(polygons) == 0:
+                continue
             polygon = max(polygons, key=lambda polygon: polygon.area)
 
+            if visualize:
+                original_rooms.append(Plan.Room(room_type=room_type, corners=np.array(polygon.exterior.coords)))
             if simplify is not None:
                 polygon = polygon.simplify(tolerance=simplify, preserve_topology=True)
-            rooms.append(Plan.Room(room_type=room_type, corners=np.array(polygon.exterior.coords)))
+            room = Plan.Room(room_type=room_type, corners=np.array(polygon.exterior.coords))
+            if simplify is not None:
+                room.align()
+            rooms.append(room)
 
         plan = Plan(rooms=rooms) if not image_only else None
+        if visualize:
+            fig, ax = prepare_plot()
+            ax.set_xlim(0, 255)
+            ax.set_ylim(255, 0)
+            original_plan = Plan(rooms=original_rooms)
+            original_plan.visualize(ax=ax)
+            plt.savefig(os.path.join(visualize, 'original_rooms.png'), bbox_inches='tight', pad_inches=0)
+            plt.show()
+            if plan is not None:
+                fig, ax = prepare_plot()
+                ax.set_xlim(0, 255)
+                ax.set_ylim(255, 0)
+                plan.visualize(ax=ax)
+                plt.savefig(os.path.join(visualize, 'rooms.png'), bbox_inches='tight', pad_inches=0)
+                plt.show()
+
         return plan, ImagePlan(walls=walls * 2 - 1, image=rooms_image, door_image=doors_image)
 
     @staticmethod
