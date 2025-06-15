@@ -1,4 +1,4 @@
-# Creating and Editing Indoor Plans Using Generative Models
+# HouseCFG
 ## BSc Thesis by Sabin-Mario Deaconescu
 
 ---
