@@ -62,6 +62,7 @@ function pointInPolygon(point: [number, number], polygon: [number, number][]) {
 }
 
 const getRoomTypeName = (room: RoomModel) => {
+  // @ts-ignore
   const key = RoomType.keys().find((key) => key == room.room_type);
 
   return key === undefined ? "" : RoomType.keyToString(RoomType[key]);
@@ -77,8 +78,6 @@ const SamplePlan = ({ plan, scaleFactor = 1 }: Props) => {
       return area >= 10;
     });
   }, [plan]);
-
-  const [isReady, setIsReady] = useState(false);
 
   const roomData = useMemo(() => {
     const data = validRooms.map((room) => {
@@ -128,7 +127,7 @@ const SamplePlan = ({ plan, scaleFactor = 1 }: Props) => {
 
       const text = getRoomTypeName(room);
 
-      // ctx.fillText(text, centroid[0] * scaleFactor, centroid[1] * scaleFactor);
+      ctx.fillText(text, centroid[0] * scaleFactor, centroid[1] * scaleFactor);
     }
   }, [canvasRef, scaleFactor, validRooms]);
 

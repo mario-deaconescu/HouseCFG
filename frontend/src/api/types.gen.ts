@@ -8,6 +8,9 @@ export type BubblesInputParameters = {
     ddim?: boolean;
     mask: Array<Array<Array<number>>>;
     as_image?: boolean;
+    skeletonize?: boolean;
+    simplify?: boolean;
+    felzenszwalb?: boolean;
     bubbles?: Array<Array<Array<number>>> | null;
 };
 
@@ -23,6 +26,9 @@ export type RoomTypeInputParameters = {
     ddim?: boolean;
     mask: Array<Array<Array<number>>>;
     as_image?: boolean;
+    skeletonize?: boolean;
+    simplify?: boolean;
+    felzenszwalb?: boolean;
     room_types?: Array<number> | null;
 };
 
@@ -40,29 +46,9 @@ export type BaseInputParameters = {
     ddim?: boolean;
     mask: Array<Array<Array<number>>>;
     as_image?: boolean;
-};
-
-export type GenerateBubblesData = {
-    body: BubblesInputParameters;
-    path?: never;
-    query?: never;
-    url: '/generate/bubbles';
-};
-
-export type GenerateBubblesErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GenerateBubblesError = GenerateBubblesErrors[keyof GenerateBubblesErrors];
-
-export type GenerateBubblesResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
+    skeletonize?: boolean;
+    simplify?: boolean;
+    felzenszwalb?: boolean;
 };
 
 export type GenerateRoomTypesData = {
@@ -88,6 +74,89 @@ export type GenerateRoomTypesResponses = {
     200: unknown;
 };
 
+export type GenerateBubblesData = {
+    body: BubblesInputParameters;
+    path?: never;
+    query?: never;
+    url: '/generate/bubbles';
+};
+
+export type GenerateBubblesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateBubblesError = GenerateBubblesErrors[keyof GenerateBubblesErrors];
+
+export type GenerateBubblesResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GenerateBubblesOldData = {
+    body: BubblesInputParameters;
+    path?: never;
+    query?: never;
+    url: '/generate/bubbles_old';
+};
+
+export type GenerateBubblesOldErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateBubblesOldError = GenerateBubblesOldErrors[keyof GenerateBubblesOldErrors];
+
+export type GenerateBubblesOldResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GenerateBubblesNewData = {
+    body: BubblesInputParameters;
+    path?: never;
+    query?: never;
+    url: '/generate/bubbles_new';
+};
+
+export type GenerateBubblesNewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateBubblesNewError = GenerateBubblesNewErrors[keyof GenerateBubblesNewErrors];
+
+export type GenerateBubblesNewResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type HealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health';
+};
+
+export type HealthResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type ClientOptions = {
-    baseUrl: 'http://127.0.0.1:8000' | (string & {});
+    baseUrl: 'http://127.0.1:8000' | (string & {});
 };

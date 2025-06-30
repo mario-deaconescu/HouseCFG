@@ -1,4 +1,4 @@
-import { Card, CardBody } from "@heroui/card";
+import { Card, CardBody, CardFooter } from "@heroui/card";
 import { Tab, Tabs } from "@heroui/tabs";
 import { Key, useCallback, useEffect, useMemo, useState } from "react";
 import { FaEraser, FaPaintbrush } from "react-icons/fa6";
@@ -26,6 +26,8 @@ import {
   BaseInputParameters,
   BubblesInputParameters,
   generateBubbles,
+  generateBubblesNew,
+  generateBubblesOld,
   generateRoomTypes,
   RoomTypeInputParameters,
 } from "@/api";
@@ -39,6 +41,7 @@ import {
   ModelParameters,
 } from "@/types/model-parameters.ts";
 import SamplePlan from "@/components/sample-plan.tsx";
+import ApiStatus from "@/components/api-status.tsx";
 
 const maskCanvasModes = [
   {
@@ -62,6 +65,8 @@ const maskCanvasModes = [
     size: "text-2xl",
   },
 ];
+
+const bubbleModels = [Model.BUBBLES, Model.BUBBLES_V2, Model.BUBBLES_OLD];
 
 const roomTypeOptions = RoomType.entries()
   .map(([key, value]) => ({
@@ -153,7 +158,7 @@ export default function IndexPage() {
     setProgress(0);
     setResultType(ResultType.ORIGINAL_IMAGE);
 
-    const globalMask = transpose(mask);
+    const globalMask = transpose(mask).map((row) => row.map(Number));
     const baseParams: BaseInputParameters = {
       ...modelParameters,
       num_samples: numSamples,
@@ -164,10 +169,22 @@ export default function IndexPage() {
     let fullParams: BubblesInputParameters | RoomTypeInputParameters;
     let func;
 
-    if (model === Model.BUBBLES) {
+    if (bubbleModels.includes(model)) {
       const bubbleMask = transpose(new BubbleMask(bubbles).toMask());
 
-      func = generateBubbles;
+      switch (model) {
+        case Model.BUBBLES:
+          func = generateBubbles;
+          break;
+        case Model.BUBBLES_V2:
+          func = generateBubblesNew;
+          break;
+        case Model.BUBBLES_OLD:
+          func = generateBubblesOld;
+          break;
+        default:
+          throw new Error("Invalid model for bubble generation");
+      }
       fullParams = {
         ...baseParams,
         bubbles: [bubbleMask],
@@ -297,7 +314,8 @@ export default function IndexPage() {
         <div className={"flex flex-row space-between mb-3 items-center"}>
           <p className={"flex-grow text-2xl font-bold"}> Generate Plan </p>
           <div className={"flex flex-row gap-5 items-center"}>
-            <div className={" w-[20rem]"}>
+            <ApiStatus />
+            <div className={"w-[20rem]"}>
               <ModelPicker />
             </div>
           </div>
@@ -340,7 +358,9 @@ export default function IndexPage() {
                     </CardBody>
                   </Card>
                 </Tab>
-                {model === Model.BUBBLES && (
+                {[Model.BUBBLES, Model.BUBBLES_V2, Model.BUBBLES_OLD].includes(
+                  model,
+                ) && (
                   <Tab key={"bubbles"} title={"Bubble Diagram"}>
                     <Card classNames={{ base: "aspect-square" }}>
                       <CardBody className={"p-0"}>
@@ -423,12 +443,6 @@ export default function IndexPage() {
               >
                 {sampleList !== null && (
                   <>
-                    <Pagination
-                      className={""}
-                      showControls={true}
-                      total={sampleList.images.length}
-                      onChange={(value) => setCurrentSampleIndex(value - 1)}
-                    />
                     <Select
                       className={"w-[8rem]"}
                       label={"Show Result"}
@@ -532,6 +546,22 @@ export default function IndexPage() {
               </div>
             </div>
           </CardBody>
+          {sampleList !== null && (
+            <CardFooter>
+              <div
+                className={
+                  "w-1/2 ml-[50%] flex flex-row items-center justify-center"
+                }
+              >
+                <Pagination
+                  className={"flex-shrink max-w-full"}
+                  showControls={true}
+                  total={sampleList.images.length}
+                  onChange={(value) => setCurrentSampleIndex(value - 1)}
+                />
+              </div>
+            </CardFooter>
+          )}
         </Card>
       </div>
     </DefaultLayout>

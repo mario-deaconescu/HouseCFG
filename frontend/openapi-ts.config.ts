@@ -1,7 +1,9 @@
 import { defineConfig } from "@hey-api/openapi-ts";
 
+import apiBase from "./src/config/api.ts";
+
 export default defineConfig({
-  input: "http://127.0.0.1:8000/openapi.json",
+  input: `${apiBase}/openapi.json`,
   output: "src/api",
   plugins: ["@hey-api/client-fetch"],
 });
