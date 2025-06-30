@@ -1,6 +1,7 @@
 import json
 from contextlib import asynccontextmanager
 from typing import Generator
+import asyncio
 
 import numpy as np
 import torch
@@ -25,30 +26,60 @@ from src.rplan_masks.openai.unet import UNetModel
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', validate_default=False)
-    bubbles_model_path: str = "./models/bubbles/model_9_1000.pt"
+    bubbles_old_model_path: str = "./models/bubbles/model_9_1000.pt"
     room_types_model_path: str = "./models/room_types_cfg/model_15_1500.pt"
+    bubbles_model_1_path: str = './models/combined/model_15_0.pt'
+    bubbles_model_2_path: str = './models/combined/model_19_1000.pt'
 
 
 class ModelsCache:
 
+    def _load_model(self, model, model_path: str, additional_state = None):
+        state_dict = torch.load(model_path, map_location=self.device)
+        if additional_state is None:
+            additional_state = {}
+        for key, value in additional_state.items():
+            state_dict[key] = value
+        model.load_state_dict(state_dict)
+        full_model = CFGUnetWithScale(model).to(self.device)
+        # full_model.eval()
+        return full_model
+
     def __init__(self, settings: Settings, device: torch.device):
-        bubbles_model = UNetModel(image_size=64, in_channels=6, model_channels=192, out_channels=3, num_res_blocks=3,
+        self.device = device
+        room_types_model = CFGUnet(dim=64, channels=4, out_dim=3, cond_drop_prob=0).to(device)
+        bubbles_model_1 = CFGUnet(dim=64, channels=6, out_dim=3, cond_drop_prob=0, bubble_dim=1).to(device)
+        bubbles_model_2 = CFGUnet(dim=64, channels=6, out_dim=3, cond_drop_prob=0, bubble_dim=1).to(device)
+
+        self._bubbles_model_1 = self._load_model(bubbles_model_1, settings.bubbles_model_1_path, {"null_bubble_diagram": torch.zeros_like(bubbles_model_1.null_bubble_diagram, device=device)})
+        self._bubbles_model_2 = self._load_model(bubbles_model_2, settings.bubbles_model_2_path, {"null_bubble_diagram": torch.zeros_like(bubbles_model_1.null_bubble_diagram, device=device)})
+        self._room_types_model = self._load_model(room_types_model, settings.room_types_model_path)
+        self._bubbles_old_model = None
+
+        self._settings = settings
+
+    def bubbles_1_model(self):
+        return self._bubbles_model_1
+
+    def bubbles_2_model(self):
+        return self._bubbles_model_2
+
+    def room_types_model(self):
+        return self._room_types_model
+
+    def bubbles_old_model(self):
+        if self._bubbles_old_model is not None:
+            return self._bubbles_old_model
+
+        bubbles_old_model = UNetModel(image_size=64, in_channels=6, model_channels=192, out_channels=3, num_res_blocks=3,
                                   attention_resolutions=[32, 16, 8], num_head_channels=64, resblock_updown=True,
                                   use_scale_shift_norm=True,
                                   use_new_attention_order=True, use_fp16=False, dropout=0.1, cond_drop_prob=1).to(
-            device)
-        room_types_model = CFGUnet(dim=64, channels=4, out_dim=3, cond_drop_prob=0).to(device)
+            self.device)
 
-        def load_model(model, model_path: str):
-            state_dict = torch.load(model_path, map_location=device)
-            model.load_state_dict(state_dict)
-            full_model = CFGUnetWithScale(model).to(device)
-            # full_model.eval()
-            return full_model
+        self._bubbles_old_model = self._load_model(bubbles_old_model, self._settings.bubbles_old_model_path)
 
-        self.bubbles_model = load_model(bubbles_model, settings.bubbles_model_path)
-        self.room_types_model = load_model(room_types_model, settings.room_types_model_path)
-
+        return self._bubbles_old_model
 
 def make_diffusion(num_steps: int, device: torch.device):
     T = 1000
@@ -128,9 +159,7 @@ def response_generator(sample_generator: Generator[tuple[np.ndarray, bool], None
         }
         yield f"data: {json.dumps(data)}\n\n"
 
-
-@app.post("/generate/bubbles")
-def generate_bubbles(input_params: BubblesInputParameters, request: Request):
+def generate_bubbles_helper(input_params: BubblesInputParameters, request: Request, model):
     device = request.state.device
     diffusion_cache: dict[int, SpacedDiffusion] = request.state.diffusion_cache
 
@@ -141,7 +170,7 @@ def generate_bubbles(input_params: BubblesInputParameters, request: Request):
     kwargs['bubbles'] = torch.tensor(NumpyArray3DSerializer.deserialize(input_params.bubbles), device=device,
                                      dtype=torch.float32).unsqueeze(1).repeat(input_params.num_samples, 1, 1,
                                                                               1) if input_params.bubbles is not None else None
-    generator = sample(diffusion, request.state.models_cache.bubbles_model, input_params, kwargs, device)
+    generator = sample(diffusion, model, input_params, kwargs, device)
     response = response_generator(generator, input_params)
     return StreamingResponse(response, media_type="text/event-stream")
 
@@ -158,9 +187,36 @@ def generate_room_types(input_params: RoomTypeInputParameters, request: Request)
     kwargs['room_types'] = torch.tensor(NumpyArray1DSerializer.deserialize(input_params.room_types), device=device,
                                         dtype=torch.float32).unsqueeze(0).repeat(input_params.num_samples,
                                                                                  1) if input_params.room_types is not None else None
-    generator = sample(diffusion, request.state.models_cache.room_types_model, input_params, kwargs, device)
+    generator = sample(diffusion, request.state.models_cache.room_types_model(), input_params, kwargs, device)
     response = response_generator(generator, input_params)
     return StreamingResponse(response, media_type="text/event-stream")
+
+
+@app.post("/generate/bubbles")
+def generate_bubbles(input_params: BubblesInputParameters, request: Request):
+    return generate_bubbles_helper(input_params, request, request.state.models_cache.bubbles_1_model())
+
+
+@app.post("/generate/bubbles_old")
+def generate_bubbles_old(input_params: BubblesInputParameters, request: Request):
+    return generate_bubbles_helper(input_params, request, request.state.models_cache.bubbles_old_model())
+
+
+@app.post("/generate/bubbles_new")
+def generate_bubbles_new(input_params: BubblesInputParameters, request: Request):
+    return generate_bubbles_helper(input_params, request, request.state.models_cache.bubbles_2_model())
+
+
+async def health_check():
+    while True:
+        status = {"status": "ok"}
+        await asyncio.sleep(1)
+        yield f"data: {json.dumps(status)}\n\n"
+        await asyncio.sleep(1)
+
+@app.get("/health")
+async def health():
+    return StreamingResponse(health_check(), media_type="text/event-stream")
 
 
 def use_route_names_as_operation_ids(app: FastAPI) -> None:
