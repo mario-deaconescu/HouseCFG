@@ -15,3 +15,5 @@ outputs/
 
 /src/eval/house_diffusion/
 /src/eval/houseganpp/
+/notebooks/pgf
+/notebooks/tmp*

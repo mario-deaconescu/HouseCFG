@@ -30,10 +30,20 @@ Run ```python -m lib.houseganpp.test```
 
 # How to run HouseCFG App
 
+## Scripts
+
+1. Make sure you have models available in the `models` directory.
+2. HouseCFG contains two scripts for training and sampling respectively. For help, use:
+   ```bash
+   python -m scripts.train --help
+   python -m scripts.sample --help
+   ```
+
 ## Backend
 
 ```bash
 python -m virtualenv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python -m server.py
 ```

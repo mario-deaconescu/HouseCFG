@@ -15,7 +15,7 @@ import { Pagination } from "@heroui/pagination";
 
 import DefaultLayout from "@/layouts/default";
 import ModelPicker from "@/components/model-picker.tsx";
-import { Model, useModel } from "@/context/model-context.tsx";
+import { Model, modelConstraints, useModel } from "@/context/model-context.tsx";
 import MaskCanvas from "@/components/mask-canvas.tsx";
 import { defaultMask, Mask, MaskMode, transpose } from "@/types/mask";
 import { canvasSize } from "@/types/canvas.ts";
@@ -25,6 +25,7 @@ import { Bubble, BubbleMask } from "@/types/bubble-mask.ts";
 import {
   BaseInputParameters,
   BubblesInputParameters,
+  CombinedInputParameters,
   generateBubbles,
   generateBubblesNew,
   generateBubblesOld,
@@ -166,7 +167,10 @@ export default function IndexPage() {
       mask: [globalMask],
       as_image: true,
     };
-    let fullParams: BubblesInputParameters | RoomTypeInputParameters;
+    let fullParams:
+      | BubblesInputParameters
+      | RoomTypeInputParameters
+      | CombinedInputParameters;
     let func;
 
     if (bubbleModels.includes(model)) {
@@ -189,6 +193,23 @@ export default function IndexPage() {
         ...baseParams,
         bubbles: [bubbleMask],
       };
+      if (modelConstraints[model].roomTypes) {
+        let roomTypeVector: number[] = new Array<number>(
+          RoomType.restrictedLength(),
+        ).fill(0);
+
+        for (const bubble of bubbles) {
+          const index = RoomType.toRestricted(bubble.type);
+
+          roomTypeVector[index] += 1;
+        }
+
+        fullParams = {
+          ...fullParams,
+          room_types: roomTypeVector,
+        };
+        console.log("Room types:", roomTypeVector);
+      }
     } else {
       let roomTypeVector: number[] = new Array<number>(
         RoomType.restrictedLength(),
@@ -309,9 +330,11 @@ export default function IndexPage() {
   return (
     <DefaultLayout>
       <div
-        className={"max-h-[90vh] max-w-[110vh] h-full flex flex-col mx-auto"}
+        className={
+          "max-h-[90vh] max-w-[110vh] h-full flex flex-col mx-auto items-center justify-center"
+        }
       >
-        <div className={"flex flex-row space-between mb-3 items-center"}>
+        <div className={"flex flex-row space-between mb-3 items-center w-full"}>
           <p className={"flex-grow text-2xl font-bold"}> Generate Plan </p>
           <div className={"flex flex-row gap-5 items-center"}>
             <ApiStatus />

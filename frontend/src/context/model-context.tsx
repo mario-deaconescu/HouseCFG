@@ -14,6 +14,18 @@ const modelToName: Record<Model, string> = {
   [Model.BUBBLES_V2]: "Bubbles V2",
 };
 
+type ModelConstraints = {
+  roomTypes: boolean;
+  bubbles: boolean;
+};
+
+const modelConstraints: Record<Model, ModelConstraints> = {
+  [Model.BUBBLES]: { roomTypes: true, bubbles: true },
+  [Model.BUBBLES_OLD]: { roomTypes: false, bubbles: true },
+  [Model.BUBBLES_V2]: { roomTypes: true, bubbles: true },
+  [Model.ROOM_TYPES]: { roomTypes: true, bubbles: false },
+};
+
 type ModelContextType = {
   model: Model;
   setModel: (model: Model) => void;
@@ -38,4 +50,4 @@ const useModel = () => useContext(ModelContext);
 
 export default ModelProvider;
 
-export { Model, ModelContext, useModel, modelToName };
+export { Model, ModelContext, useModel, modelToName, modelConstraints };

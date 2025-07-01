@@ -1,3 +1,4 @@
+import argparse
 import json
 from contextlib import asynccontextmanager
 from typing import Generator
@@ -13,7 +14,7 @@ from fastapi.openapi.utils import get_openapi
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.backend.types import PlanSerializer
-from src.backend.models import RoomTypeInputParameters
+from src.backend.models import RoomTypeInputParameters, CombinedInputParameters
 from src.backend.types import NumpyArray1DSerializer
 from src.backend.models import BubblesInputParameters, BaseInputParameters
 from src.backend.types import NumpyArray3DSerializer
@@ -97,6 +98,7 @@ async def lifespan(app: FastAPI):
     device = torch.device(
         'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
     models_cache = ModelsCache(settings, device)
+    shutdown_event = asyncio.Event()
     yield {
         "settings": settings,
         "device": device,
@@ -104,8 +106,10 @@ async def lifespan(app: FastAPI):
         "diffusion_cache": {
             100: make_diffusion(100, device),
         },
+        "shutdown_event": shutdown_event
     }
     # Cleanup code can be added here if needed
+    shutdown_event.set()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -159,7 +163,7 @@ def response_generator(sample_generator: Generator[tuple[np.ndarray, bool], None
         }
         yield f"data: {json.dumps(data)}\n\n"
 
-def generate_bubbles_helper(input_params: BubblesInputParameters, request: Request, model):
+def generate_bubbles_helper(input_params: BubblesInputParameters | CombinedInputParameters, request: Request, model):
     device = request.state.device
     diffusion_cache: dict[int, SpacedDiffusion] = request.state.diffusion_cache
 
@@ -170,6 +174,9 @@ def generate_bubbles_helper(input_params: BubblesInputParameters, request: Reque
     kwargs['bubbles'] = torch.tensor(NumpyArray3DSerializer.deserialize(input_params.bubbles), device=device,
                                      dtype=torch.float32).unsqueeze(1).repeat(input_params.num_samples, 1, 1,
                                                                               1) if input_params.bubbles is not None else None
+    if isinstance(input_params, CombinedInputParameters):
+        kwargs['room_types'] = torch.tensor(NumpyArray1DSerializer.deserialize(input_params.room_types), device=device,
+                                            dtype=torch.float32).unsqueeze(0).repeat(input_params.num_samples, 1) if input_params.room_types is not None else None
     generator = sample(diffusion, model, input_params, kwargs, device)
     response = response_generator(generator, input_params)
     return StreamingResponse(response, media_type="text/event-stream")
@@ -193,7 +200,7 @@ def generate_room_types(input_params: RoomTypeInputParameters, request: Request)
 
 
 @app.post("/generate/bubbles")
-def generate_bubbles(input_params: BubblesInputParameters, request: Request):
+def generate_bubbles(input_params: CombinedInputParameters, request: Request):
     return generate_bubbles_helper(input_params, request, request.state.models_cache.bubbles_1_model())
 
 
@@ -203,20 +210,23 @@ def generate_bubbles_old(input_params: BubblesInputParameters, request: Request)
 
 
 @app.post("/generate/bubbles_new")
-def generate_bubbles_new(input_params: BubblesInputParameters, request: Request):
+def generate_bubbles_new(input_params: CombinedInputParameters, request: Request):
     return generate_bubbles_helper(input_params, request, request.state.models_cache.bubbles_2_model())
 
 
-async def health_check():
-    while True:
+async def health_check(shutdown_event: asyncio.Event):
+    while not shutdown_event.is_set():
         status = {"status": "ok"}
-        await asyncio.sleep(1)
         yield f"data: {json.dumps(status)}\n\n"
         await asyncio.sleep(1)
 
 @app.get("/health")
-async def health():
-    return StreamingResponse(health_check(), media_type="text/event-stream")
+async def health(request: Request):
+    return StreamingResponse(health_check(request.state.shutdown_event), media_type="text/event-stream")
+
+@app.get("/ping")
+async def ping():
+    return {"message": "pong"}
 
 
 def use_route_names_as_operation_ids(app: FastAPI) -> None:
@@ -266,4 +276,9 @@ app.openapi = custom_openapi
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--reload', '-r', action='store_true', default=False)
+
+    args = parser.parse_args()
+
+    uvicorn.run('server:app', host='0.0.0.0', port=8000, reload=args.reload)

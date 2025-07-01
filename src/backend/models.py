@@ -22,3 +22,6 @@ class BubblesInputParameters(BaseInputParameters):
 
 class RoomTypeInputParameters(BaseInputParameters):
     room_types: Optional[NumpyArray1D[int]] = None
+
+class CombinedInputParameters(BubblesInputParameters, RoomTypeInputParameters):
+    pass

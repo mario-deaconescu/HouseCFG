@@ -14,6 +14,21 @@ export type BubblesInputParameters = {
     bubbles?: Array<Array<Array<number>>> | null;
 };
 
+export type CombinedInputParameters = {
+    condition_scale?: number;
+    rescaled_phi?: number;
+    num_samples?: number;
+    num_steps?: number;
+    ddim?: boolean;
+    mask: Array<Array<Array<number>>>;
+    as_image?: boolean;
+    skeletonize?: boolean;
+    simplify?: boolean;
+    felzenszwalb?: boolean;
+    room_types?: Array<number> | null;
+    bubbles?: Array<Array<Array<number>>> | null;
+};
+
 export type HttpValidationError = {
     detail?: Array<ValidationError>;
 };
@@ -75,7 +90,7 @@ export type GenerateRoomTypesResponses = {
 };
 
 export type GenerateBubblesData = {
-    body: BubblesInputParameters;
+    body: CombinedInputParameters;
     path?: never;
     query?: never;
     url: '/generate/bubbles';
@@ -121,7 +136,7 @@ export type GenerateBubblesOldResponses = {
 };
 
 export type GenerateBubblesNewData = {
-    body: BubblesInputParameters;
+    body: CombinedInputParameters;
     path?: never;
     query?: never;
     url: '/generate/bubbles_new';
@@ -151,6 +166,20 @@ export type HealthData = {
 };
 
 export type HealthResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/ping';
+};
+
+export type PingResponses = {
     /**
      * Successful Response
      */
